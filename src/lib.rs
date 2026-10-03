@@ -9,7 +9,11 @@ pub mod ui;
 #[derive(Debug, Clone)]
 pub enum EngineEvent {
     /// Started synthesizing/playing sentence `idx` of `total`.
-    SentenceStarted { idx: usize, total: usize, text: String },
+    SentenceStarted {
+        idx: usize,
+        total: usize,
+        text: String,
+    },
     /// Worker finished enqueueing every sentence.
     AllQueued,
     /// Non-fatal synthesis failure (skips sentence).

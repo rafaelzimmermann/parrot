@@ -3,7 +3,6 @@
 //! Lifecycle: read primary selection → clean/split → TTS worker thread →
 //! rodio playback → egui overlay → auto-close on completion.
 
-
 use std::process::ExitCode;
 use std::sync::atomic::AtomicU32;
 use std::sync::{mpsc, Arc, Mutex};
@@ -30,7 +29,14 @@ fn main() -> ExitCode {
 
     let mut builder = env_logger::Builder::new();
     // Only our crate's logs — a plain "debug" filter lets winit spam thousands of lines.
-    builder.filter_module("hypr_speak", if opts.verbose { log::LevelFilter::Debug } else { log::LevelFilter::Warn });
+    builder.filter_module(
+        "hypr_speak",
+        if opts.verbose {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Warn
+        },
+    );
     builder.filter_level(log::LevelFilter::Warn);
     builder.parse_default_env();
     builder.init();
@@ -59,7 +65,10 @@ fn main() -> ExitCode {
     }
     let sentences = textutil::split_sentences(&cleaned);
     let total = sentences.len();
-    log::debug!("speaking {total} sentence(s), {} chars", cleaned.chars().count());
+    log::debug!(
+        "speaking {total} sentence(s), {} chars",
+        cleaned.chars().count()
+    );
 
     // ---- 2. headless mode ---------------------------------------------------
     if let Some(path) = &opts.wav {
@@ -92,7 +101,13 @@ fn main() -> ExitCode {
     let (tx, rx) = mpsc::channel::<EngineEvent>();
     let worker_running = audio.is_some();
     if let Some(audio) = &audio {
-        spawn_worker(sentences.clone(), opts.clone(), audio.player(), shared.clone(), tx);
+        spawn_worker(
+            sentences.clone(),
+            opts.clone(),
+            audio.player(),
+            shared.clone(),
+            tx,
+        );
     } else {
         let _ = tx.send(EngineEvent::Fatal("no usable audio device".into()));
     }
@@ -164,7 +179,10 @@ pub fn resolve_model(opts: &hypr_speak::cli::Opts) -> Option<std::path::PathBuf>
     jsons.sort();
     jsons
         .iter()
-        .find(|p| p.file_name().is_some_and(|n| n == "en_US-lessac-medium.onnx.json"))
+        .find(|p| {
+            p.file_name()
+                .is_some_and(|n| n == "en_US-lessac-medium.onnx.json")
+        })
         .or_else(|| jsons.first())
         .cloned()
 }
@@ -231,17 +249,28 @@ fn spawn_worker(
         let total = sentences.len();
         let mut i = 0usize;
         loop {
-            if i >= total {
-                break;
-            }
             // honor restart requests (speed change)
             if let Some(r) = shared.restart_from.lock().unwrap().take() {
                 player.lock().unwrap().clear();
                 i = r.min(total.saturating_sub(1));
             }
-            let speed = shared.speed_milli.load(std::sync::atomic::Ordering::Relaxed) as f32 / 1000.0;
+            if queued(&player) > 0 {
+                std::thread::sleep(Duration::from_millis(40));
+                continue;
+            }
+            if i >= total {
+                break;
+            }
+            let speed = shared
+                .speed_milli
+                .load(std::sync::atomic::Ordering::Relaxed) as f32
+                / 1000.0;
             if tx
-                .send(EngineEvent::SentenceStarted { idx: i, total, text: sentences[i].clone() })
+                .send(EngineEvent::SentenceStarted {
+                    idx: i,
+                    total,
+                    text: sentences[i].clone(),
+                })
                 .is_err()
             {
                 return; // UI gone
@@ -255,13 +284,6 @@ fn spawn_worker(
                 }
             }
             i += 1;
-            // prefetch pacing: at most 2 sentences queued, watch for restarts
-            while i < total && queued(&player) >= 2 {
-                std::thread::sleep(Duration::from_millis(40));
-                if shared.restart_from.lock().unwrap().is_some() {
-                    break;
-                }
-            }
         }
         let _ = tx.send(EngineEvent::AllQueued);
     });
@@ -282,7 +304,10 @@ fn synth_to_wav(
         samples.extend(pcm.samples);
     }
     let secs = samples.len() as f64 / rate as f64;
-    let wav = pcm_to_wav(&Pcm { samples, sample_rate: rate });
+    let wav = pcm_to_wav(&Pcm {
+        samples,
+        sample_rate: rate,
+    });
     std::fs::write(path, &wav)?;
     Ok(format!(
         "{} sentences, {} bytes, ~{secs:.1}s of '{}…'",

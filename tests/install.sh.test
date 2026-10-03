@@ -131,5 +131,22 @@ out="$(bash "$INSTALL" --conf "$HYPRDIR/hyprland.conf" --bin-dir "$FAKE/bin" --v
 check "rc!=0" "$rc" "$out" '[[ $rc -ne 0 ]]'
 
 echo
+echo "== T15: modifier order cannot hide a conflict =="
+reset
+printf 'bind = SHIFT ALT, Escape, exec, other\n' > "$HYPRDIR/hyprland.conf"
+out="$(run --key 'ALT SHIFT, Escape')"; rc=$?
+check "reordered modifiers conflict" "$rc" "$out" '[[ $rc -ne 0 ]] && [[ "$out" == *CONFLICT* ]]'
+
+echo "== T16: generated Lua rule has valid syntax =="
+reset
+printf '%s\n' '-- fixture' > "$HYPRDIR/hyprland.lua"
+out="$(run)"; rc=$?
+check "Lua table fields retained" "$rc" "$out" 'grep -q "float = true," "$HYPRDIR/hyprland.lua" && grep -q "size  = \"440 170\"," "$HYPRDIR/hyprland.lua"'
+if command -v luac >/dev/null; then
+    luac -p "$HYPRDIR/hyprland.lua"
+    rc=$?
+    check "Lua parses" "$rc" "$out" '[[ $rc -eq 0 ]]'
+fi
+
 echo "passed=$PASS failed=$FAIL"
 [[ $FAIL -eq 0 ]]

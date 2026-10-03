@@ -70,14 +70,18 @@ where
             "--engine" => {
                 let v = it.next().ok_or_missing("--engine")?;
                 if !["auto", "espeak", "piper"].contains(&v.as_str()) {
-                    return Err(CliError::Msg(format!("bad --engine: {v} (auto|espeak|piper)")));
+                    return Err(CliError::Msg(format!(
+                        "bad --engine: {v} (auto|espeak|piper)"
+                    )));
                 }
                 o.engine = v;
             }
             "--model" => o.model = Some(it.next().ok_or_missing("--model")?),
             "--speed" => {
                 let v = it.next().ok_or_missing("--speed")?;
-                o.speed = v.parse().map_err(|_| CliError::Msg(format!("bad --speed: {v}")))?;
+                o.speed = v
+                    .parse()
+                    .map_err(|_| CliError::Msg(format!("bad --speed: {v}")))?;
             }
             "--wav" => {
                 let v = it.next().ok_or_missing("--wav")?;
@@ -85,7 +89,11 @@ where
             }
             "--verbose" | "-v" => o.verbose = true,
             "-h" | "--help" => return Err(CliError::Help),
-            other => return Err(CliError::Msg(format!("unknown argument: {other} (see --help)"))),
+            other => {
+                return Err(CliError::Msg(format!(
+                    "unknown argument: {other} (see --help)"
+                )))
+            }
         }
     }
     if !(0.25..=4.0).contains(&o.speed) {
@@ -116,14 +124,22 @@ mod tests {
 
     #[test]
     fn engine_and_model_flags_parse() {
-        let o = parse_from(args(&["--engine", "piper", "--model", "/v/en_US-lessac-medium.onnx"])).unwrap();
+        let o = parse_from(args(&[
+            "--engine",
+            "piper",
+            "--model",
+            "/v/en_US-lessac-medium.onnx",
+        ]))
+        .unwrap();
         assert_eq!(o.engine, "piper");
         assert_eq!(o.model.as_deref(), Some("/v/en_US-lessac-medium.onnx"));
     }
 
     #[test]
     fn bad_engine_rejected() {
-        assert!(matches!(parse_from(args(&["--engine", "sam"])), Err(CliError::Msg(m)) if m.contains("bad --engine")));
+        assert!(
+            matches!(parse_from(args(&["--engine", "sam"])), Err(CliError::Msg(m)) if m.contains("bad --engine"))
+        );
     }
 
     #[test]
@@ -138,7 +154,15 @@ mod tests {
     #[test]
     fn all_flags() {
         let o = parse_from(args(&[
-            "--text", "hi there", "--voice", "de", "--speed", "1.5", "--wav", "/tmp/a.wav", "-v",
+            "--text",
+            "hi there",
+            "--voice",
+            "de",
+            "--speed",
+            "1.5",
+            "--wav",
+            "/tmp/a.wav",
+            "-v",
         ]))
         .unwrap();
         assert_eq!(o.text.as_deref(), Some("hi there"));
@@ -156,18 +180,28 @@ mod tests {
 
     #[test]
     fn missing_values() {
-        assert!(matches!(parse_from(args(&["--text"])), Err(CliError::Msg(m)) if m.contains("needs a value")));
-        assert!(matches!(parse_from(args(&["--speed"])), Err(CliError::Msg(m)) if m.contains("needs a value")));
+        assert!(
+            matches!(parse_from(args(&["--text"])), Err(CliError::Msg(m)) if m.contains("needs a value"))
+        );
+        assert!(
+            matches!(parse_from(args(&["--speed"])), Err(CliError::Msg(m)) if m.contains("needs a value"))
+        );
     }
 
     #[test]
     fn bad_speed() {
-        assert!(matches!(parse_from(args(&["--speed", "fast"])), Err(CliError::Msg(m)) if m.contains("bad --speed")));
-        assert!(matches!(parse_from(args(&["--speed", "9.9"])), Err(CliError::Msg(m)) if m.contains("out of range")));
+        assert!(
+            matches!(parse_from(args(&["--speed", "fast"])), Err(CliError::Msg(m)) if m.contains("bad --speed"))
+        );
+        assert!(
+            matches!(parse_from(args(&["--speed", "9.9"])), Err(CliError::Msg(m)) if m.contains("out of range"))
+        );
     }
 
     #[test]
     fn unknown_argument() {
-        assert!(matches!(parse_from(args(&["--frobnicate"])), Err(CliError::Msg(m)) if m.contains("unknown argument")));
+        assert!(
+            matches!(parse_from(args(&["--frobnicate"])), Err(CliError::Msg(m)) if m.contains("unknown argument"))
+        );
     }
 }

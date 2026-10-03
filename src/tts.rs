@@ -52,7 +52,11 @@ pub mod piper_engine {
                     bin.display()
                 );
             }
-            Ok(Self { bin: bin.to_path_buf(), model: onnx, sample_rate })
+            Ok(Self {
+                bin: bin.to_path_buf(),
+                model: onnx,
+                sample_rate,
+            })
         }
     }
 
@@ -87,7 +91,10 @@ pub mod piper_engine {
                 .chunks_exact(2)
                 .map(|c| i16::from_le_bytes([c[0], c[1]]))
                 .collect();
-            Ok(Pcm { samples, sample_rate: self.sample_rate })
+            Ok(Pcm {
+                samples,
+                sample_rate: self.sample_rate,
+            })
         }
     }
 
@@ -113,7 +120,8 @@ pub mod piper_engine {
         let v: serde_json::Value = serde_json::from_str(raw)?;
         v.pointer("/audio/sample_rate")
             .and_then(|s| s.as_u64())
-            .map(|s| s as u32)
+            .and_then(|s| u32::try_from(s).ok())
+            .filter(|s| (8000..=192000).contains(s))
             .ok_or_else(|| anyhow::anyhow!("missing audio.sample_rate in piper config"))
     }
 }
@@ -181,7 +189,9 @@ extern "C" {
     fn espeak_SetVoiceByName(name: *const c_char) -> c_int;
     fn espeak_SetParameter(parameter: c_int, value: c_int, relative: c_int) -> c_int;
     fn espeak_SetSynthCallback(
-        cb: Option<unsafe extern "C" fn(wav: *mut c_void, num: c_int, events: *mut c_void) -> c_int>,
+        cb: Option<
+            unsafe extern "C" fn(wav: *mut c_void, num: c_int, events: *mut c_void) -> c_int,
+        >,
     );
     fn espeak_Synth(
         text: *const c_void,
@@ -207,7 +217,7 @@ unsafe extern "C" fn synth_callback(wav: *mut c_void, num: c_int, _events: *mut 
         PCM_SINK.with(|s| s.borrow_mut().extend_from_slice(samples));
     }
     0 // NOTE: 0 = continue synthesis (non-zero aborts) — verified against
-       // libespeak-ng 1.52 empirically; 17 callbacks vs 1 for a test sentence.
+      // libespeak-ng 1.52 empirically; 17 callbacks vs 1 for a test sentence.
 }
 
 pub struct EspeakNg {
@@ -215,22 +225,32 @@ pub struct EspeakNg {
     initialized: bool,
 }
 
-// SAFETY: espeak-ng is not thread-safe, but we guarantee a single owning
-// thread (the TTS worker). The type is never shared across threads.
-unsafe impl Send for EspeakNg {}
+static ESPEAK_ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 impl EspeakNg {
     pub fn new(voice: &str) -> anyhow::Result<Self> {
+        let cname = CString::new(voice).map_err(|_| anyhow::anyhow!("voice name contains NUL"))?;
+        if ESPEAK_ACTIVE
+            .compare_exchange(
+                false,
+                true,
+                std::sync::atomic::Ordering::AcqRel,
+                std::sync::atomic::Ordering::Acquire,
+            )
+            .is_err()
+        {
+            anyhow::bail!("an espeak-ng engine is already active");
+        }
         unsafe {
             let rate = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, std::ptr::null(), 0);
             if rate <= 0 {
+                ESPEAK_ACTIVE.store(false, std::sync::atomic::Ordering::Release);
                 anyhow::bail!("espeak_Initialize failed ({rate}); is espeak-ng data installed?");
             }
             let mut eng = Self {
                 sample_rate: rate as u32,
                 initialized: true,
             };
-            let cname = CString::new(voice).map_err(|_| anyhow::anyhow!("voice name contains NUL"))?;
             if espeak_SetVoiceByName(cname.as_ptr()) != EE_OK {
                 anyhow::bail!("voice not found: {voice}");
             }
@@ -262,7 +282,7 @@ impl TtsEngine for EspeakNg {
             espeak_SetParameter(PARAM_RATE, Self::wpm_for(speed), 0);
             PCM_SINK.with(|s| s.borrow_mut().clear());
             espeak_SetSynthCallback(Some(synth_callback));
-            let len = ctext.as_bytes().len();
+            let len = ctext.as_bytes_with_nul().len();
             let rc = espeak_Synth(
                 ctext.as_ptr() as *const c_void,
                 len, // include NUL terminator per API docs
@@ -293,6 +313,7 @@ impl Drop for EspeakNg {
                 espeak_Cancel();
                 espeak_Terminate();
             }
+            ESPEAK_ACTIVE.store(false, std::sync::atomic::Ordering::Release);
         }
     }
 }
@@ -309,6 +330,10 @@ mod tests {
 
     #[test]
     fn piper_sample_rate_from_json_missing_fails() {
+        assert!(piper_engine::sample_rate_from_json(r#"{"audio":{"sample_rate":0}}"#).is_err());
+        assert!(
+            piper_engine::sample_rate_from_json(r#"{"audio":{"sample_rate":4294989346}}"#).is_err()
+        );
         assert!(piper_engine::sample_rate_from_json("{}").is_err());
         assert!(piper_engine::sample_rate_from_json("not json").is_err());
     }
@@ -347,6 +372,10 @@ mod tests {
     fn espeak_synthesizes_nonempty_pcm() {
         let _g = lock();
         let mut eng = EspeakNg::new("en").expect("espeak-ng available on this host");
+        assert!(
+            EspeakNg::new("en").is_err(),
+            "global FFI state must have one owner"
+        );
         let pcm = eng.synthesize("Hello world.", 1.0).expect("synth ok");
         assert_eq!(pcm.sample_rate, 22050);
         assert!(!pcm.samples.is_empty(), "expected non-empty PCM");
@@ -395,8 +424,12 @@ mod tests {
         // Faster speech should produce fewer samples for the same sentence
         // (pitch-preserving wpm change, not tape speed).
         let mut eng = EspeakNg::new("en").expect("espeak-ng available");
-        let slow = eng.synthesize("The quick brown fox jumps over the lazy dog.", 0.6).unwrap();
-        let fast = eng.synthesize("The quick brown fox jumps over the lazy dog.", 2.0).unwrap();
+        let slow = eng
+            .synthesize("The quick brown fox jumps over the lazy dog.", 0.6)
+            .unwrap();
+        let fast = eng
+            .synthesize("The quick brown fox jumps over the lazy dog.", 2.0)
+            .unwrap();
         assert!(
             fast.samples.len() < slow.samples.len(),
             "fast={} slow={}",
@@ -414,10 +447,16 @@ mod tests {
         let wav = pcm_to_wav(&pcm);
         // mono @ 8000 Hz
         assert_eq!(u16::from_le_bytes([wav[22], wav[23]]), 1);
-        assert_eq!(u32::from_le_bytes([wav[24], wav[25], wav[26], wav[27]]), 8000);
+        assert_eq!(
+            u32::from_le_bytes([wav[24], wav[25], wav[26], wav[27]]),
+            8000
+        );
         // first sample = -1 → 0xFFFF
         assert_eq!(&wav[44..46], &[0xFF, 0xFF]);
         // byte rate = rate * channels * 2
-        assert_eq!(u32::from_le_bytes([wav[28], wav[29], wav[30], wav[31]]), 16000);
+        assert_eq!(
+            u32::from_le_bytes([wav[28], wav[29], wav[30], wav[31]]),
+            16000
+        );
     }
 }

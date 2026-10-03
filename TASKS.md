@@ -1,5 +1,15 @@
 # TASKS — parrot (hypr-speak)
 
+## Public release review (2026-10-03)
+
+- [x] Review architecture and code; record findings in docs/REVIEW.md.
+- [x] Fix verified FFI, clipboard, worker, and installer defects.
+- [x] Add CI, MIT license, contribution guide, and correct Rust requirement.
+- [x] Generate README neural voice sample and add installer ASCII parrot.
+- [ ] Complete outstanding release checks tracked in docs/REVIEW.md.
+
+The historical completion log below predates this review.
+
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (documented)
 
 ## T0 Recon ............................... DONE

@@ -89,15 +89,33 @@ mod tests {
     #[test]
     fn append_pcm_empty_is_noop() {
         let p = unconnected_player();
-        append_pcm(&p, &Pcm { samples: vec![], sample_rate: 22050 });
+        append_pcm(
+            &p,
+            &Pcm {
+                samples: vec![],
+                sample_rate: 22050,
+            },
+        );
         assert_eq!(queued(&p), 0);
     }
 
     #[test]
     fn append_pcm_enqueues() {
         let p = unconnected_player();
-        append_pcm(&p, &Pcm { samples: vec![0i16; 64], sample_rate: 22050 });
-        append_pcm(&p, &Pcm { samples: vec![0i16; 64], sample_rate: 22050 });
+        append_pcm(
+            &p,
+            &Pcm {
+                samples: vec![0i16; 64],
+                sample_rate: 22050,
+            },
+        );
+        append_pcm(
+            &p,
+            &Pcm {
+                samples: vec![0i16; 64],
+                sample_rate: 22050,
+            },
+        );
         assert_eq!(queued(&p), 2);
     }
 }

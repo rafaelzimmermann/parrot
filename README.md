@@ -3,6 +3,11 @@
 **Speak Selection for Hyprland.** Highlight any text, press `ALT+Escape`, and a small
 floating overlay speaks your selection aloud — macOS-style — then closes itself.
 
+[Listen to the neural voice demo](docs/voice-demo.wav) — Piper,
+`en_US-lessac-medium`, speed 1.0. See [demo provenance](docs/voice-demo.md).
+
+Status: early release. See [review findings and remaining release checks](docs/REVIEW.md).
+
 ```
 ┌──────────────────────────────────────────────┐
 │ 🔊  Speaking                        [ ✕ ]    │
@@ -17,7 +22,7 @@ floating overlay speaks your selection aloud — macOS-style — then closes its
 
 - **Wayland-native** — reads the *primary selection* (falls back to clipboard);
   exits silently in ~10 ms if nothing is selected
-- **Fully offline** — espeak-ng synthesis, no network, no accounts
+- **Offline synthesis** — espeak-ng or an installed Piper voice; no accounts
 - **Pitch-preserving speed control** — 0.5×–2.0× slider re-synthesizes the current
   sentence on the fly
 - **Sentence streaming** — long texts are split and spoken sentence-by-sentence
@@ -35,7 +40,8 @@ floating overlay speaks your selection aloud — macOS-style — then closes its
 ## Install
 
 ```sh
-git clone … && cd parrot
+git clone https://github.com/rafaelzimmermann/parrot.git
+cd parrot
 ./install.sh                 # deps check → conflict scan → build → config + ~/.local/bin
 ```
 
@@ -47,7 +53,7 @@ Choose a different key:
 
 Other flags: `--dry-run`, `--no-bind`, `--no-rules`, `--bin-dir DIR`, `--skip-build`, `--conf PATH`.
 
-Requires: `rust` (1.85+), `gcc`, `pkg-config`, `alsa-lib`, `espeak-ng`, `wayland`
+Requires: `rust` (1.92+), `gcc`, `pkg-config`, `alsa-lib`, `espeak-ng`, `wayland`
 (see your distro's dev packages). Audio goes through PipeWire/Pulse/ALSA via `rodio`.
 
 ### Voice quality: espeak-ng (default) → Piper (neural)
@@ -95,8 +101,8 @@ next to it), `hyprctl reload`, and delete `~/.local/bin/hypr-speak`.
 ## Development
 
 ```sh
-cargo test              # 30 unit tests (text splitting, FFI, WAV, CLI, audio)
-bash tests/install.sh.test   # 22 installer fixture tests (tmp dirs, never touches your config)
+cargo test --locked
+bash tests/install.sh.test   # requires a release binary; uses temporary configs
 cargo build --release
 ```
 
@@ -107,14 +113,50 @@ Layout: `src/textutil.rs` (cleanup/split) · `src/selection.rs` (wl-clipboard) �
 ### Design notes
 
 - **espeak-ng via FFI** instead of embedded Piper ONNX: keeps the binary lean and
-  dependency-free (`libespeak-ng.so` is ~1 MB and everywhere); the `TtsEngine` trait
-  leaves room for a Piper/rhvoice drop-in later (see `PLAN.md`).
+  small, with system espeak-ng libraries required at runtime. The `TtsEngine`
+  trait also supports the optional Piper subprocess backend.
 - **FFI pitfalls** worth remembering: `AUDIO_OUTPUT_SYNCHRONOUS = 2`, the synth
   callback must return **0** to continue on espeak-ng 1.52, and the global state
   forbids concurrent use (tests serialize behind a mutex).
 
 ## Roadmap
 
-- [ ] Piper (neural) voice as an optional engine
+- [x] Piper (neural) voice as an optional engine
 - [ ] Config file (default voice/speed/keybind)
 - [ ] Progress bar reflects actual audio position of the current sentence
+
+## Neural voice
+
+```sh
+./install.sh --voice en_US-lessac-medium
+hypr-speak --engine piper --text "Hello from Parrot" --wav demo.wav
+hypr-speak --engine espeak --voice en --text "Hello from Parrot"
+```
+
+Automatic engine selection prefers installed Piper models. An incomplete Piper
+installation reports an error; choose `--engine espeak` to bypass it. Initial
+voice installation downloads third-party software and weights. Speech synthesis
+then runs locally. Piper and voice datasets have their own licenses; the
+project's MIT license covers its source, not those dependencies.
+
+## Linux compatibility
+
+Distribution support and desktop support are separate: the clipboard reader
+requires Wayland data-control protocols. Hyprland is the intended desktop;
+GNOME, KDE, and X11 selection capture are not currently supported or verified.
+Explicit `--text ... --wav ...` rendering does not require a desktop session.
+
+For Ubuntu/Debian builds, install native dependencies, then use Rust 1.92 or
+newer (older distribution Rust packages may be insufficient):
+
+```sh
+sudo apt install build-essential pkg-config libasound2-dev libespeak-ng-dev libwayland-dev libxkbcommon-dev
+```
+
+Ubuntu CI is configured but has not yet run remotely. Other distributions need
+equivalent ALSA, espeak-ng, Wayland, and xkbcommon development packages. No
+cross-distribution runtime certification is claimed.
+
+## License
+
+[MIT](LICENSE). Contribution instructions are in [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -45,12 +45,15 @@ pub fn clean(raw: &str) -> String {
 /// - a small abbreviation list (`e.g.`, `approx.`, `Mr.` …) suppresses splits
 pub fn split_sentences(text: &str) -> Vec<String> {
     const ABBREVIATIONS: &[&str] = &[
-        "e.g", "i.e", "etc", "approx", "al", "vs", "no", "nr", "mr", "mrs", "ms", "dr",
-        "prof", "st", "inc", "ltd", "co", "fig", "resp", "min", "max", "sec",
+        "e.g", "i.e", "etc", "approx", "al", "vs", "no", "nr", "mr", "mrs", "ms", "dr", "prof",
+        "st", "inc", "ltd", "co", "fig", "resp", "min", "max", "sec",
     ];
 
     fn is_closing(c: char) -> bool {
-        matches!(c, '"' | '\'' | '’' | '”' | '»' | ')' | ']' | '}' | '」' | '』')
+        matches!(
+            c,
+            '"' | '\'' | '’' | '”' | '»' | ')' | ']' | '}' | '」' | '』'
+        )
     }
 
     fn ends_with_abbreviation(cur: &str) -> bool {
@@ -75,8 +78,10 @@ pub fn split_sentences(text: &str) -> Vec<String> {
     while i < chars.len() {
         let c = chars[i];
         cur.push(c);
-        let terminator =
-            matches!(c, '.' | '!' | '?' | ';' | ':' | '\n' | '。' | '！' | '？' | '…');
+        let terminator = matches!(
+            c,
+            '.' | '!' | '?' | ';' | ':' | '\n' | '。' | '！' | '？' | '…'
+        );
         if terminator {
             let always_ends = c == '\n' || matches!(c, '。' | '！' | '？');
             let next = chars.get(i + 1).copied();
@@ -154,7 +159,10 @@ mod tests {
 
     #[test]
     fn cleans_control_chars_and_whitespace() {
-        assert_eq!(clean("  Hello \u{1}\t world \n\n again  "), "Hello world again");
+        assert_eq!(
+            clean("  Hello \u{1}\t world \n\n again  "),
+            "Hello world again"
+        );
     }
 
     #[test]

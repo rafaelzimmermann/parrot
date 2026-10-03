@@ -159,13 +159,19 @@ impl eframe::App for SpeakApp {
                 if self.finished_at.is_none() {
                     self.finished_at = Some(Instant::now());
                     ctx.request_repaint();
-                } else if self.finished_at.is_some_and(|t| t.elapsed() > Duration::from_millis(400)) {
+                } else if self
+                    .finished_at
+                    .is_some_and(|t| t.elapsed() > Duration::from_millis(400))
+                {
                     self.close(ctx);
                 }
             } else {
                 self.finished_at = None;
             }
-        } else if self.error_at.is_some_and(|t| t.elapsed() > Duration::from_secs(6)) {
+        } else if self
+            .error_at
+            .is_some_and(|t| t.elapsed() > Duration::from_secs(6))
+        {
             self.close(ctx);
         }
 
@@ -191,7 +197,10 @@ impl eframe::App for SpeakApp {
                     ui.label(RichText::new("hypr-speak").color(DIM).size(12.0).strong());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
-                            .add(egui::Button::new(RichText::new("✕").color(DIM).size(13.0)).frame(false))
+                            .add(
+                                egui::Button::new(RichText::new("✕").color(DIM).size(13.0))
+                                    .frame(false),
+                            )
                             .clicked()
                         {
                             self.close(ui.ctx());
@@ -203,7 +212,11 @@ impl eframe::App for SpeakApp {
 
                 // current sentence
                 let sentence = if self.cur_text.is_empty() {
-                    if self.sentences.is_empty() { "(empty)".into() } else { self.sentences[0].clone() }
+                    if self.sentences.is_empty() {
+                        "(empty)".into()
+                    } else {
+                        self.sentences[0].clone()
+                    }
                 } else {
                     self.cur_text.clone()
                 };
@@ -240,8 +253,13 @@ impl eframe::App for SpeakApp {
 
                 // controls
                 ui.horizontal(|ui| {
-                    let label = if self.paused { "▶  Play" } else { "⏸  Pause" };
-                    let enabled = !(self.finished_at.is_some() || (self.done_queued && self.audio.as_ref().is_none_or(|a| a.is_empty())));
+                    let label = if self.paused {
+                        "▶  Play"
+                    } else {
+                        "⏸  Pause"
+                    };
+                    let enabled = !(self.finished_at.is_some()
+                        || (self.done_queued && self.audio.as_ref().is_none_or(|a| a.is_empty())));
                     let btn = egui::Button::new(RichText::new(label).color(TEXT).size(14.0))
                         .fill(BTN_BG)
                         .corner_radius(egui::CornerRadius::same(8))
@@ -264,27 +282,47 @@ impl eframe::App for SpeakApp {
                     }
                     if resp.drag_stopped() || resp.lost_focus() {
                         // Re-speak the current sentence at the new rate.
-                        *self.shared.restart_from.lock().unwrap() = Some(self.cur.min(self.total - 1));
+                        *self.shared.restart_from.lock().unwrap() =
+                            Some(self.cur.min(self.total - 1));
                     }
-                    ui.label(RichText::new(format!("{:.2}×", self.speed)).color(ACCENT).size(13.0).strong());
+                    ui.label(
+                        RichText::new(format!("{:.2}×", self.speed))
+                            .color(ACCENT)
+                            .size(13.0)
+                            .strong(),
+                    );
                 });
             });
     }
 }
 
-fn error_panel(ui: &mut egui::Ui, err: &str, error_at: Option<Instant>) {    ui.vertical_centered(|ui| {
+fn error_panel(ui: &mut egui::Ui, err: &str, error_at: Option<Instant>) {
+    ui.vertical_centered(|ui| {
         ui.add_space(10.0);
-        ui.label(RichText::new("⚠ hypr-speak error").color(ERR).size(15.0).strong());
+        ui.label(
+            RichText::new("⚠ hypr-speak error")
+                .color(ERR)
+                .size(15.0)
+                .strong(),
+        );
         ui.add_space(8.0);
         ui.label(RichText::new(err).color(TEXT).size(13.0));
         ui.add_space(4.0);
         if let Some(t) = error_at {
             let left = 6u64.saturating_sub(t.elapsed().as_secs());
-            ui.label(RichText::new(format!("closing in {left}s…")).color(DIM).size(11.0));
+            ui.label(
+                RichText::new(format!("closing in {left}s…"))
+                    .color(DIM)
+                    .size(11.0),
+            );
         }
         ui.add_space(6.0);
         if ui
-            .add(egui::Button::new(RichText::new("Close").color(TEXT)).fill(BTN_BG).min_size(egui::vec2(90.0, 28.0)))
+            .add(
+                egui::Button::new(RichText::new("Close").color(TEXT))
+                    .fill(BTN_BG)
+                    .min_size(egui::vec2(90.0, 28.0)),
+            )
             .clicked()
         {
             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);

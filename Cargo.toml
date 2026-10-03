@@ -2,9 +2,10 @@
 name = "hypr-speak"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.92"
 description = "Speak Selection overlay for Hyprland/Wayland: hotkey → read selection → speak → auto-close"
 license = "MIT"
-repository = "https://example.invalid/parrot"
+repository = "https://github.com/rafaelzimmermann/parrot"
 
 [lib]
 name = "hypr_speak"

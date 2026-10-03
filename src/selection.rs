@@ -16,10 +16,12 @@ pub fn get_selection_text() -> anyhow::Result<Option<String>> {
 }
 
 fn read_source(source: ClipboardType) -> anyhow::Result<Option<String>> {
-    match get_contents(source, Seat::Unspecified, MimeType::Any) {
-        Ok((mut pipe, _content_type)) => {
-            let mut buf = String::new();
-            pipe.read_to_string(&mut buf)?;
+    match get_contents(source, Seat::Unspecified, MimeType::Text) {
+        Ok((pipe, _content_type)) => {
+            let mut bytes = Vec::new();
+            pipe.take((crate::textutil::MAX_TEXT_LEN * 4) as u64)
+                .read_to_end(&mut bytes)?;
+            let buf = String::from_utf8_lossy(&bytes);
             let t = buf.trim().to_string();
             if t.is_empty() {
                 Ok(None)
