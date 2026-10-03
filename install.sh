@@ -257,6 +257,10 @@ fi
 
 # --- 5. plan modifications -----------------------------------------------------
 APPEND=()
+# NOTE: always bind the ABSOLUTE path — Hyprland's own PATH (inherited from the
+# session/seat manager) usually does NOT include ~/.local/bin, even if the
+# installer's shell does. A bare name silently fails to spawn.
+CMD="$BIN_DIR/$BIN_NAME"
 if [[ -n "$LUA_CONF" ]]; then
     TARGET="$LUA_CONF"
     if [[ $NO_RULES -eq 0 ]] && ! grep -Eq 'hypr-speak-overlay|class *= *["'\''\^]?hypr-speak' "$LUA_CONF"; then
@@ -275,14 +279,8 @@ if [[ -n "$LUA_CONF" ]]; then
         [[ $NO_RULES -eq 0 ]] && log "window rules already present — skipping"
     fi
     if [[ $NO_BIND -eq 0 && $ALREADY_BOUND -eq 0 ]]; then
-        if command -v "$BIN_NAME" >/dev/null 2>&1 || [[ ":$PATH:" == *":$BIN_DIR:"* ]]; then
-            CMD="$BIN_NAME"
-        else
-            CMD="$BIN_DIR/$BIN_NAME"
-        fi
         # translate "MODS, KEY" → Lua "MODS + KEY"
-        LUA_KEY="${KEY%%,*} + ${KEY##*,}"
-        LUA_KEY="$(echo "${LUA_KEY//,/ + }" | xargs)"
+        LUA_KEY="$(echo "${KEY//,/ + }" | xargs)"
         APPEND+=("hl.bind(\"${LUA_KEY}\", hl.dsp.exec_cmd(\"${CMD}\"))")
     fi
 else
@@ -298,11 +296,6 @@ else
         [[ $NO_RULES -eq 0 ]] && log "window rules already present — skipping"
     fi
     if [[ $NO_BIND -eq 0 && $ALREADY_BOUND -eq 0 ]]; then
-        if command -v "$BIN_NAME" >/dev/null 2>&1 || [[ ":$PATH:" == *":$BIN_DIR:"* ]]; then
-            CMD="$BIN_NAME"
-        else
-            CMD="$BIN_DIR/$BIN_NAME"
-        fi
         APPEND+=("bind = ${KEY}, exec, ${CMD}")
     fi
 fi

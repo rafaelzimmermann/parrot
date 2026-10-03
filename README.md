@@ -50,6 +50,11 @@ Other flags: `--dry-run`, `--no-bind`, `--no-rules`, `--bin-dir DIR`, `--skip-bu
 Requires: `rust` (1.85+), `gcc`, `pkg-config`, `alsa-lib`, `espeak-ng`, `wayland`
 (see your distro's dev packages). Audio goes through PipeWire/Pulse/ALSA via `rodio`.
 
+> **Note:** the installer binds the **absolute** binary path — Hyprland's own
+> `PATH` (inherited from the session manager) often lacks `~/.local/bin`.
+> Alternatively add it: `systemctl --user import-environment PATH` after
+> exporting it in your profile, then re-run the installer.
+
 ## Usage
 
 | Action | How |
