@@ -83,5 +83,20 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
   (floating+pinned, 440×170), spoken, auto-closed. NB: in 0.56 all classic
   string dispatches (`key`, `exec X`) are Lua-eval'd.
 - T8: README written. PROJECT COMPLETE.
+- **Upgrade: Piper neural voice** (user: "too robotic, hard to understand"):
+  piper-rs crate dead-end (its vendored espeak-ng CMake build produces an empty
+  libspeechPlayer.a → audio_object_open undefined; no system-espeak feature).
+  Final design: official piper binary as a subprocess behind the existing
+  `TtsEngine` trait (`PiperEngine`: stdin text → `--output-raw` PCM16LE,
+  `--length-scale 1/speed`, sample rate parsed from `.onnx.json`). Engine
+  resolution: `--engine auto|espeak|piper` + `--model`, auto = model found in
+  ~/.local/share/hypr-speak/voices (prefer en_US-lessac-medium). piper binary
+  lookup checks PATH *and* ~/.local/bin explicitly (Hyprland PATH gap again).
+  install.sh `--voice NAME`: downloads piper dist (GH releases 2023.11.14-2,
+  x86_64/aarch64) + model pair (HF) with --voice-url helper for preview/tests.
+  Verified: WAV 8.0s/3 sentences (~190 ms/sentence synth), speed 1.0/1.5/2.0 →
+  2.44/1.86/1.57 s, live overlay via lua dispatch speaks with piper. User:
+  "owesome". 36/36 Rust + 38/38 installer tests. Note: piper bundles its own
+  libespeak-ng (isolated, no clash with ours).
 
 **Test totals: 30 Rust unit tests + 34 installer fixture checks, all green.**

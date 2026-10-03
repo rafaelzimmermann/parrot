@@ -50,6 +50,20 @@ Other flags: `--dry-run`, `--no-bind`, `--no-rules`, `--bin-dir DIR`, `--skip-bu
 Requires: `rust` (1.85+), `gcc`, `pkg-config`, `alsa-lib`, `espeak-ng`, `wayland`
 (see your distro's dev packages). Audio goes through PipeWire/Pulse/ALSA via `rodio`.
 
+### Voice quality: espeak-ng (default) → Piper (neural)
+
+espeak-ng is instant and tiny but robotic. For a natural voice, run:
+
+    ./install.sh --voice en_US-lessac-medium
+
+This downloads the official `piper` binary + a ~63 MB voice model into
+`~/.local/share/hypr-speak/` (idempotent; ~5 MB binary, model of your choice).
+hypr-speak then auto-prefers piper — espeak-ng remains the zero-download
+fallback (`--engine espeak` forces it). Speed still works (piper `--length-scale`),
+pitch preserved. Other voices: `de_DE-ramona-low`, `en_GB-alan-medium`, …
+(see [piper-voices](https://huggingface.co/rhasspy/piper-voices)); preview the
+exact URLs with `./install.sh --voice-url <name>`.
+
 > **Note:** the installer binds the **absolute** binary path — Hyprland's own
 > `PATH` (inherited from the session manager) often lacks `~/.local/bin`.
 > Alternatively add it: `systemctl --user import-environment PATH` after

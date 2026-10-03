@@ -120,6 +120,16 @@ printf 'local m = "ALT"\nhl.bind(m .. " + Escape", hl.dsp.exec_cmd("win"))\n' > 
 out="$(run)"; rc=$?
 check "detects via var" "$rc" "$out" '[[ $rc -ne 0 ]] && echo "$out" | grep -q "hyprland.lua:2"'
 
+echo "== T13: --voice-url derives download URLs =="
+out="$(bash "$INSTALL" --conf "$HYPRDIR/hyprland.conf" --bin-dir "$FAKE/bin" --voice-url en_US-lessac-medium 2>&1)"; rc=$?
+check "rc0" "$rc" "$out" '[[ $rc -eq 0 ]]'
+check "onnx url" "$rc" "$out" 'echo "$out" | grep -q "^https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx$"'
+check "json url" "$rc" "$out" 'echo "$out" | grep -q "\.onnx\.json$"'
+
+echo "== T14: bad voice name rejected =="
+out="$(bash "$INSTALL" --conf "$HYPRDIR/hyprland.conf" --bin-dir "$FAKE/bin" --voice-url nonsense 2>&1)"; rc=$?
+check "rc!=0" "$rc" "$out" '[[ $rc -ne 0 ]]'
+
 echo
 echo "passed=$PASS failed=$FAIL"
 [[ $FAIL -eq 0 ]]

@@ -13,6 +13,8 @@ OPTIONS:
     --text <TXT>    Speak TXT instead of reading the selection (testing)
     --voice <NAME>  espeak-ng voice, e.g. `en`, `de`, `en+whisper`   [default: en]
     --speed <F>     Initial velocity 0.5–2.0                        [default: 1.0]
+    --engine <E>    auto | espeak | piper                          [default: auto]
+    --model <PATH>  piper voice model (.onnx or .onnx.json)
     --wav <FILE>    Synthesize to a .wav file and exit (headless test)
     --verbose       Log to stderr
     -h, --help      This help
@@ -26,6 +28,8 @@ pub struct Opts {
     pub text: Option<String>,
     pub voice: String,
     pub speed: f32,
+    pub engine: String,
+    pub model: Option<String>,
     pub wav: Option<PathBuf>,
     pub verbose: bool,
 }
@@ -36,6 +40,8 @@ impl Default for Opts {
             text: None,
             voice: "en".into(),
             speed: 1.0,
+            engine: "auto".into(),
+            model: None,
             wav: None,
             verbose: false,
         }
@@ -61,6 +67,14 @@ where
         match a.as_str() {
             "--text" => o.text = Some(it.next().ok_or_missing("--text")?),
             "--voice" => o.voice = it.next().ok_or_missing("--voice")?,
+            "--engine" => {
+                let v = it.next().ok_or_missing("--engine")?;
+                if !["auto", "espeak", "piper"].contains(&v.as_str()) {
+                    return Err(CliError::Msg(format!("bad --engine: {v} (auto|espeak|piper)")));
+                }
+                o.engine = v;
+            }
+            "--model" => o.model = Some(it.next().ok_or_missing("--model")?),
             "--speed" => {
                 let v = it.next().ok_or_missing("--speed")?;
                 o.speed = v.parse().map_err(|_| CliError::Msg(format!("bad --speed: {v}")))?;
@@ -98,6 +112,18 @@ mod tests {
 
     fn args(list: &[&str]) -> Vec<String> {
         list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn engine_and_model_flags_parse() {
+        let o = parse_from(args(&["--engine", "piper", "--model", "/v/en_US-lessac-medium.onnx"])).unwrap();
+        assert_eq!(o.engine, "piper");
+        assert_eq!(o.model.as_deref(), Some("/v/en_US-lessac-medium.onnx"));
+    }
+
+    #[test]
+    fn bad_engine_rejected() {
+        assert!(matches!(parse_from(args(&["--engine", "sam"])), Err(CliError::Msg(m)) if m.contains("bad --engine")));
     }
 
     #[test]

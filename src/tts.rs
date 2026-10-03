@@ -22,6 +22,104 @@ pub trait TtsEngine: Send {
 }
 
 // ---------------------------------------------------------------------------
+// Piper (neural TTS) — official `piper` binary driven as a subprocess.
+// Model pair (.onnx + .onnx.json) from rhasspy/piper-voices.
+// Speed maps to `--length-scale 1/speed` (pitch preserved).
+// ---------------------------------------------------------------------------
+
+pub mod piper_engine {
+    use super::{Pcm, TtsEngine};
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
+    use std::process::{Command, Stdio};
+
+    pub struct PiperEngine {
+        bin: PathBuf,
+        model: PathBuf,
+        sample_rate: u32,
+    }
+
+    impl PiperEngine {
+        /// `model_path`: `.onnx` weights or `.onnx.json` config (pair must co-exist).
+        /// `bin`: path to the `piper` executable.
+        pub fn new(model_path: &Path, bin: &Path) -> anyhow::Result<Self> {
+            let (onnx, json) = locate_model_pair(model_path)?;
+            let raw = std::fs::read_to_string(&json)?;
+            let sample_rate = sample_rate_from_json(&raw)?;
+            if !bin.is_file() {
+                anyhow::bail!(
+                    "piper executable not found: {} (run ./install.sh --voice en_US-lessac-medium)",
+                    bin.display()
+                );
+            }
+            Ok(Self { bin: bin.to_path_buf(), model: onnx, sample_rate })
+        }
+    }
+
+    impl TtsEngine for PiperEngine {
+        fn synthesize(&mut self, text: &str, speed: f32) -> anyhow::Result<Pcm> {
+            let length_scale = 1.0 / speed.clamp(0.25, 4.0);
+            let mut child = Command::new(&self.bin)
+                .arg("--model")
+                .arg(&self.model)
+                .arg("--length-scale")
+                .arg(format!("{length_scale:.4}"))
+                .arg("--output-raw")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|e| anyhow::anyhow!("spawn {}: {e}", self.bin.display()))?;
+            {
+                let mut stdin = child.stdin.take().expect("piped stdin");
+                // write text; dropping stdin closes it → piper speaks and exits
+                stdin.write_all(text.as_bytes())?;
+            }
+            let out = child.wait_with_output()?;
+            if !out.status.success() {
+                anyhow::bail!("piper exited with {}", out.status);
+            }
+            let bytes = out.stdout;
+            if bytes.is_empty() {
+                anyhow::bail!("piper produced no audio");
+            }
+            let samples: Vec<i16> = bytes
+                .chunks_exact(2)
+                .map(|c| i16::from_le_bytes([c[0], c[1]]))
+                .collect();
+            Ok(Pcm { samples, sample_rate: self.sample_rate })
+        }
+    }
+
+    /// Given a path to either file of the model pair, return (onnx, json).
+    pub fn locate_model_pair(p: &Path) -> anyhow::Result<(PathBuf, PathBuf)> {
+        let (onnx, json) = if p.extension().is_some_and(|e| e == "json") {
+            (p.with_extension(""), p.to_path_buf()) // strips only last ext → .onnx
+        } else {
+            let mut json = p.as_os_str().to_owned();
+            json.push(".json");
+            (p.to_path_buf(), PathBuf::from(json))
+        };
+        for f in [&onnx, &json] {
+            if !f.is_file() {
+                anyhow::bail!("model file missing: {}", f.display());
+            }
+        }
+        Ok((onnx, json))
+    }
+
+    /// Extract `audio.sample_rate` from a piper `.onnx.json` config.
+    pub fn sample_rate_from_json(raw: &str) -> anyhow::Result<u32> {
+        let v: serde_json::Value = serde_json::from_str(raw)?;
+        v.pointer("/audio/sample_rate")
+            .and_then(|s| s.as_u64())
+            .map(|s| s as u32)
+            .ok_or_else(|| anyhow::anyhow!("missing audio.sample_rate in piper config"))
+    }
+}
+pub use piper_engine::PiperEngine;
+
+// ---------------------------------------------------------------------------
 // WAV container writer (PCM16 mono)
 // ---------------------------------------------------------------------------
 
@@ -202,6 +300,41 @@ impl Drop for EspeakNg {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn piper_sample_rate_from_json_parses() {
+        let cfg = r#"{"audio":{"sample_rate":22050},"espeak":{"voice":"en-us"}}"#;
+        assert_eq!(piper_engine::sample_rate_from_json(cfg).unwrap(), 22050);
+    }
+
+    #[test]
+    fn piper_sample_rate_from_json_missing_fails() {
+        assert!(piper_engine::sample_rate_from_json("{}").is_err());
+        assert!(piper_engine::sample_rate_from_json("not json").is_err());
+    }
+
+    #[test]
+    fn piper_locate_model_pair_from_both_sides() {
+        let dir = std::env::temp_dir().join("parrot-pair-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let onnx = dir.join("v.onnx");
+        let json = dir.join("v.onnx.json");
+        std::fs::write(&onnx, b"").unwrap();
+        std::fs::write(&json, b"").unwrap();
+        let (a, b) = piper_engine::locate_model_pair(&json).unwrap();
+        assert_eq!(a, onnx);
+        assert_eq!(b, json);
+        let (a2, b2) = piper_engine::locate_model_pair(&onnx).unwrap();
+        assert_eq!((a2, b2), (onnx.clone(), json.clone()));
+    }
+
+    #[test]
+    fn piper_locate_model_pair_missing_side_fails() {
+        let dir = std::env::temp_dir().join("parrot-pair-missing");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("only.onnx"), b"").unwrap();
+        assert!(piper_engine::locate_model_pair(&dir.join("only.onnx")).is_err());
+    }
 
     /// espeak-ng keeps global state; tests must not hit it concurrently.
     static ESPEAK_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

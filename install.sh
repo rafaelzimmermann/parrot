@@ -11,6 +11,9 @@
 #   --no-rules         Don't add window rules
 #   --bin-dir DIR      Install binary here           (default: ~/.local/bin)
 #   --skip-build       Don't build (use existing target/release/hypr-speak)
+#   --voice NAME       Also install the piper neural voice (e.g. en_US-lessac-medium):
+#                       downloads the piper binary + voice model (~63 MB) on first use
+#   --voice-url NAME   Print the download URLs for NAME and exit
 #   -h | --help        This help
 
 set -euo pipefail
@@ -19,6 +22,10 @@ DEFAULT_KEY="ALT, Escape"
 KEY="$DEFAULT_KEY"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
 BIN_DIR="$HOME/.local/bin"
+VOICE=""
+VOICE_DIR="$HOME/.local/share/hypr-speak/voices"
+PIPER_DIR="$HOME/.local/share/hypr-speak/piper"
+PIPER_VER="2023.11.14-2"
 DRY_RUN=0 NO_BIND=0 NO_RULES=0 SKIP_BUILD=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_NAME="hypr-speak"
@@ -27,6 +34,49 @@ APP_ID="hypr-speak"
 log()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARNING:\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+
+# Map a piper voice name (lang-speaker-quality) to its download URL prefix.
+voice_url_prefix() {
+    local n="$1" lang rest speaker quality
+    lang="${n%%-*}"; rest="${n#*-}"
+    quality="${rest##*-}"; speaker="${rest%-*}"
+    case "$quality" in low|x_low|medium|high) ;; *) die "bad voice name: $n (expected lang-speaker-quality, e.g. en_US-lessac-medium)" ;; esac
+    [[ -n "$lang" && -n "$speaker" && "$lang" != "$n" ]] || die "bad voice name: $n"
+    echo "https://huggingface.co/rhasspy/piper-voices/resolve/main/${lang:0:2}/${lang}/${speaker}/${quality}/${n}"
+}
+
+dl() { # dl URL DEST
+    command -v curl >/dev/null 2>&1 || die "curl is required for --voice"
+    log "downloading $(basename "$2")"
+    curl -fSL --retry 3 --progress-bar -o "$2" "$1"
+}
+
+setup_voice() {
+    local prefix n
+    prefix="$(voice_url_prefix "$VOICE")"
+    n="$VOICE"
+    mkdir -p "$VOICE_DIR"
+    if [[ -s "$VOICE_DIR/$n.onnx" && -s "$VOICE_DIR/$n.onnx.json" ]]; then
+        log "voice $n: already installed"
+    else
+        dl "$prefix.onnx"      "$VOICE_DIR/$n.onnx"
+        dl "$prefix.onnx.json" "$VOICE_DIR/$n.onnx.json"
+        [[ -s "$VOICE_DIR/$n.onnx" ]] || die "voice model download failed (empty file)"
+    fi
+    if [[ -x "$BIN_DIR/piper" ]]; then
+        log "piper binary: already installed"
+    else
+        local arch="$([[ "$(uname -m)" == aarch64 ]] && echo aarch64 || echo x86_64)"
+        mkdir -p "$PIPER_DIR" "$BIN_DIR"
+        log "downloading piper ($PIPER_VER, $arch)"
+        curl -fSL --retry 3 --progress-bar \
+            "https://github.com/rhasspy/piper/releases/download/$PIPER_VER/piper_linux_${arch}.tar.gz" \
+            | tar xz -C "$PIPER_DIR" --strip-components=1
+        ln -sf "$PIPER_DIR/piper" "$BIN_DIR/piper"
+        "$BIN_DIR/piper" --help >/dev/null 2>&1 || die "piper binary does not run on this system"
+    fi
+    log "neural voice ready: hypr-speak will use piper ($n) automatically"
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -37,11 +87,20 @@ while [[ $# -gt 0 ]]; do
         --no-bind)   NO_BIND=1 ;;
         --no-rules)  NO_RULES=1 ;;
         --skip-build) SKIP_BUILD=1 ;;
+        --voice)     VOICE="${2:?--voice needs a value (e.g. en_US-lessac-medium)}"; shift ;;
+        --voice-url) VOICE_URL_ONLY=1; VOICE="${2:?--voice-url needs a value}"; shift ;;
         -h|--help)   grep '^#' "$0" | sed 's/^# \{0,1\}//g' | head -14; exit 0 ;;
         *)           die "unknown option: $1 (see --help)" ;;
     esac
     shift
 done
+
+if [[ "${VOICE_URL_ONLY:-0}" -eq 1 ]]; then
+    u="$(voice_url_prefix "$VOICE")"
+    echo "$u.onnx"
+    echo "$u.onnx.json"
+    exit 0
+fi
 
 # --- 1. dependency check ----------------------------------------------------
 log "checking dependencies"
@@ -247,7 +306,16 @@ or free the binding above in your config first."
     done
 fi
 
-# --- 4. build ----------------------------------------------------------------
+# --- 4. neural voice (optional --voice) -------------------------------------
+if [[ -n "$VOICE" ]]; then
+    if [[ $DRY_RUN -eq 1 ]]; then
+        log "dry-run: would download piper + voice '$VOICE' into ~/.local/share/hypr-speak/"
+    else
+        setup_voice
+    fi
+fi
+
+# --- 5. build ---------------------------------------------------------------
 cd "$SCRIPT_DIR"
 if [[ $SKIP_BUILD -eq 0 ]]; then
     log "building release binary"
