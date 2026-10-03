@@ -29,7 +29,9 @@ fn main() -> ExitCode {
     };
 
     let mut builder = env_logger::Builder::new();
-    builder.filter_level(if opts.verbose { log::LevelFilter::Debug } else { log::LevelFilter::Warn });
+    // Only our crate's logs — a plain "debug" filter lets winit spam thousands of lines.
+    builder.filter_module("hypr_speak", if opts.verbose { log::LevelFilter::Debug } else { log::LevelFilter::Warn });
+    builder.filter_level(log::LevelFilter::Warn);
     builder.parse_default_env();
     builder.init();
 

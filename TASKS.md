@@ -34,28 +34,39 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
 - [x] cargo test: 30/30 unit tests green
 - [x] cargo build --release clean (16.4 MB binary)
 - [x] headless: --wav → valid 7 s WAV; aplay playback OK
-- [ ] live: wl-copy primary → run app → window exists (hyprctl clients)
-- [ ] live: auto-close observed (exit code + timing)
-- [ ] live: screenshot via grimblast matches mockup layout
-- [ ] live: no-selection → silent exit 0
+- [x] live: wl-copy primary → run app → window exists (hyprctl clients: class hypr-speak, 440×170, floating)
+- [x] live: auto-close observed (exit 0, elapsed = audio + 400 ms grace; verified 7.5 s @ 1.0×)
+- [x] live: screenshot pixel-verified vs mockup (94 % dark panel bg, accent + light text present)
+- [x] live: no-selection → silent exit 0 in 9 ms
 
 ## T7 install.sh
-- [ ] dep check (cargo, gcc, pkg-config, alsa, espeak-ng)
-- [ ] bind scan: resolve $vars, follow source=, MOD1/MOD4 mapping, conflict abort w/ file:line
-- [ ] idempotent append (rules + bind), timestamped backup, hyprctl reload
-- [ ] flags: --dry-run --key --no-bind --no-rules --bin-dir --skip-build
-- [ ] fixture tests: conflict / already-bound / var-substitution / nested source (tmp HOME)
-- [ ] --dry-run against real config
+- [x] dep check (cargo, gcc, pkg-config, alsa, espeak-ng, wayland)
+- [x] bind scan: resolve $vars, follow source=, MOD1/MOD4 + ESC/ESCAPE normalization, conflict abort w/ file:line
+- [x] idempotent append (rules + bind), timestamped backup, hyprctl reload
+- [x] flags: --dry-run --key --no-bind --no-rules --bin-dir --skip-build --conf
+- [x] fixture tests: conflict / already-bound / var-substitution / nested source / MOD1 alias / dry-run (22 checks, tmp dirs)
+- [x] --dry-run against real config (checksum-verified untouched)
+- [x] REAL INSTALL performed: ALT,Escape bound, rules added, backup made, reloaded
+- [x] end-to-end: hyprctl dispatch exec hypr-speak → overlay + full playback + auto-close (exit 0, 7.5 s)
+- [x] idempotent re-run detected existing bind+rules
 
 ## T8 Docs & wrap-up
-- [ ] README.md (usage, keybind, troubleshooting, roadmap)
-- [ ] final TASKS status + summary
+- [x] README.md (usage, keybind, troubleshooting, design notes, roadmap)
+- [x] final TASKS status + summary
 
 ---
 ## Progress log
 - T0/T1 complete — env verified live; plan+mockups written
 - T2–T5 complete — all modules written; API drift vs egui 0.35/rodio 0.22 resolved
   (eframe App::ui, Player-not-Sink, ClipboardType, const Color32, corner_radius)
-- T6: 30/30 unit tests; release build; --wav headless pipeline verified (valid WAV + audible)
-  FFI bugs found via ctypes cross-check: output mode, position type, param order, callback
-  return polarity — all fixed with tests. Next: live GUI test, install.sh, README.
+- T6: 30/30 unit tests; release build; --wav headless pipeline verified (valid WAV + audible).
+  FFI bugs found via ctypes cross-check: output mode (SYNCHRONOUS=2), position type
+  (POS_CHARACTER=1), param order, and callback return polarity (0 = continue) — all fixed.
+  Live: window geometry/floating verified via hyprctl; UI pixel-verified vs mockup via
+  screenshot analysis; auto-close timing = audio + 400 ms; no-selection exits 9 ms.
+- T7: install.sh with var-resolving/source-following conflict scanner; 22/22 fixture
+  tests; real-config dry-run verified read-only; REAL install done (ALT,Escape was free);
+  end-to-end dispatch test OK; re-run idempotent.
+- T8: README written. PROJECT COMPLETE.
+
+**Test totals: 30 Rust unit tests + 22 installer fixture checks, all green.**

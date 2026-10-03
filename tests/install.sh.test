@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Fixture tests for install.sh — run from repo root:  ./tests/install.sh.test
+# Uses a fake $HOME; never touches the real config unless invoked with --real.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INSTALL="$SCRIPT_DIR/install.sh"
+FAKE="$(mktemp -d)"
+trap 'rm -rf "$FAKE"' EXIT
+PASS=0; FAIL=0
+
+HYPRDIR="$FAKE/.config/hypr"
+mkdir -p "$HYPRDIR" "$FAKE/bin"
+
+run() { # run installer against fake conf; neutralize HYPRLAND_INSTANCE_SIGNATURE so
+    # tests never call `hyprctl reload` on a real live session
+    HYPRLAND_INSTANCE_SIGNATURE= \
+    "$INSTALL" --conf "$HYPRDIR/hyprland.conf" --bin-dir "$FAKE/bin" --skip-build "$@" 2>&1
+}
+reset() { # fresh fixture: empty conf, no stale backups
+    : > "$HYPRDIR/hyprland.conf"
+    rm -f "$HYPRDIR"/hyprland.conf.bak-* "$HYPRDIR/extra.conf"
+}
+
+check() { # name expected_rc condition_expr
+    local name="$1" rc="$2" out="$3" cond="$4"
+    if eval "$cond"; then PASS=$((PASS+1)); echo "  ok    $name"
+    else FAIL=$((FAIL+1)); echo "  FAIL  $name (rc=$rc)"; echo "$out" | sed 's/^/        /'; fi
+}
+
+# Tests focus on config logic; the release binary must exist beforehand (no rebuilds in tests)
+[[ -x "$SCRIPT_DIR/target/release/hypr-speak" ]] || { echo "build the project first (cargo build --release)"; exit 1; }
+
+reset; echo "== T1: free key → appends bind + rules =="
+printf 'bind = SUPER, T, exec, terminal\n' > "$HYPRDIR/hyprland.conf"
+out="$(run)"; rc=$?
+check "installs cleanly" "$rc" "$out" '[[ $rc -eq 0 ]]'
+check "bind appended" "$rc" "$out" 'grep -q "^bind = ALT, Escape, exec" "$HYPRDIR/hyprland.conf"'
+check "rules appended" "$rc" "$out" 'grep -q "windowrule = float" "$HYPRDIR/hyprland.conf"'
+check "backup created" "$rc" "$out" 'ls "$HYPRDIR"/hyprland.conf.bak-* >/dev/null 2>&1'
+check "binary installed" "$rc" "$out" '[[ -x "$FAKE/bin/hypr-speak" ]]'
+
+reset; echo "== T2: conflict → abort with file:line =="
+printf 'bind = SUPER, T, exec, terminal\nbind = ALT, Escape, exec, something-else\n' > "$HYPRDIR/hyprland.conf"
+out="$(run)"; rc=$?
+check "aborts" "$rc" "$out" '[[ $rc -ne 0 ]]'
+check "shows file:line" "$rc" "$out" 'echo "$out" | grep -q "hyprland.conf:2"'
+check "shows offending line" "$rc" "$out" 'echo "$out" | grep -q "something-else"'
+check "no modification" "$rc" "$out" '! grep -q "hypr-speak" "$HYPRDIR/hyprland.conf"'
+
+reset; echo "== T3: already bound to hypr-speak → skip bind, keep rules =="
+printf 'bind = ALT, Escape, exec, hypr-speak\n' > "$HYPRDIR/hyprland.conf"
+out="$(run)"; rc=$?
+check "succeeds" "$rc" "$out" '[[ $rc -eq 0 ]]'
+check "no duplicate bind" "$rc" "$out" '[[ $(grep -c "ALT, Escape" "$HYPRDIR/hyprland.conf") -eq 1 ]]'
+check "rules still added" "$rc" "$out" 'grep -q "windowrule = float" "$HYPRDIR/hyprland.conf"'
+
+reset; echo "== T4: \$var substitution detects conflict =="
+printf '$mainMod = ALT\nbind = $mainMod, Escape, exec, window-thing\n' > "$HYPRDIR/hyprland.conf"
+out="$(run)"; rc=$?
+check "detects via var" "$rc" "$out" '[[ $rc -ne 0 ]] && echo "$out" | grep -qi "conflict"'
+
+reset; echo "== T5: nested source → conflict found in sourced file =="
+printf 'source = extra.conf\n' > "$HYPRDIR/hyprland.conf"
+printf 'bind = MOD1, escape, exec, other-tool\n' > "$HYPRDIR/extra.conf"
+out="$(run)"; rc=$?
+check "follows source" "$rc" "$out" '[[ $rc -ne 0 ]]'
+check "reports sourced file" "$rc" "$out" 'echo "$out" | grep -q "extra.conf:1"'
+check "MOD1+escape normalized" "$rc" "$out" 'echo "$out" | grep -q "other-tool"'
+
+reset; echo "== T6: similar-but-different combo → no conflict =="
+printf 'bind = ALT SHIFT, Escape, exec, other\nbind = ALT, Tab, cyclenext\n' > "$HYPRDIR/hyprland.conf"
+out="$(run)"; rc=$?
+check "installs" "$rc" "$out" '[[ $rc -eq 0 ]]'
+
+reset; echo "== T7: custom --key =="
+printf '' > "$HYPRDIR/hyprland.conf"
+out="$(run --key "SUPER SHIFT, S")"; rc=$?
+check "custom key appended" "$rc" "$out" 'grep -q "^bind = SUPER SHIFT, S, exec" "$HYPRDIR/hyprland.conf"'
+
+reset; echo "== T8: dry-run changes nothing =="
+printf 'bind = SUPER, T, exec, term\n' > "$HYPRDIR/hyprland.conf"
+out="$(run --dry-run)"; rc=$?
+check "dry-run ok" "$rc" "$out" '[[ $rc -eq 0 ]]'
+check "conf untouched" "$rc" "$out" '! grep -q "hypr-speak" "$HYPRDIR/hyprland.conf"'
+check "no backup" "$rc" "$out" '! ls "$HYPRDIR"/hyprland.conf.bak-* >/dev/null 2>&1'
+check "shows plan" "$rc" "$out" 'echo "$out" | grep -q "would append"'
+
+echo
+echo "passed=$PASS failed=$FAIL"
+[[ $FAIL -eq 0 ]]
