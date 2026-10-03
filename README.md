@@ -27,6 +27,10 @@ floating overlay speaks your selection aloud — macOS-style — then closes its
 - **Safe installer** — resolves `$variables` and follows `source=` files in your
   `hyprland.conf`, aborts on keybind conflicts with `file:line`, makes a timestamped
   backup, and is idempotent (safe to re-run)
+- **Lua config support** — detects Hyprland 0.56+ native Lua configs
+  (`hyprland.lua`; where `hyprland.conf` is auto-generated) and edits the Lua
+  source instead, with the same conflict detection (`hl.bind("var + Key", …)`
+  patterns are resolved and normalized)
 
 ## Install
 
