@@ -1,4 +1,4 @@
-//! hypr-speak — Speak Selection overlay for Hyprland/Wayland.
+//! parrot — Speak Selection overlay for Hyprland/Wayland.
 //!
 //! Lifecycle: read primary selection → clean/split → TTS worker thread →
 //! rodio playback → egui overlay → auto-close on completion.
@@ -8,11 +8,11 @@ use std::sync::atomic::AtomicU32;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
-use hypr_speak::audio::{append_pcm, queued, AudioHandle, SharedPlayer};
-use hypr_speak::cli::{self, CliError, USAGE};
-use hypr_speak::tts::{pcm_to_wav, EspeakNg, Pcm, TtsEngine};
-use hypr_speak::ui::{Shared, SpeakApp};
-use hypr_speak::{selection, textutil, EngineEvent};
+use parrot::audio::{append_pcm, queued, AudioHandle, SharedPlayer};
+use parrot::cli::{self, CliError, USAGE};
+use parrot::tts::{pcm_to_wav, EspeakNg, Pcm, TtsEngine};
+use parrot::ui::{Shared, SpeakApp};
+use parrot::{selection, textutil, EngineEvent};
 
 fn main() -> ExitCode {
     let opts = match cli::parse_from(std::env::args().skip(1)) {
@@ -22,7 +22,7 @@ fn main() -> ExitCode {
             return ExitCode::SUCCESS;
         }
         Err(CliError::Msg(e)) => {
-            eprintln!("hypr-speak: {e}");
+            eprintln!("parrot: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -30,7 +30,7 @@ fn main() -> ExitCode {
     let mut builder = env_logger::Builder::new();
     // Only our crate's logs — a plain "debug" filter lets winit spam thousands of lines.
     builder.filter_module(
-        "hypr_speak",
+        "parrot",
         if opts.verbose {
             log::LevelFilter::Debug
         } else {
@@ -78,7 +78,7 @@ fn main() -> ExitCode {
                 ExitCode::SUCCESS
             }
             Err(e) => {
-                eprintln!("hypr-speak: {e}");
+                eprintln!("parrot: {e}");
                 ExitCode::FAILURE
             }
         };
@@ -114,8 +114,8 @@ fn main() -> ExitCode {
 
     let native = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("hypr-speak")
-            .with_app_id("hypr-speak")
+            .with_title("parrot")
+            .with_app_id("parrot")
             .with_inner_size([440.0, 170.0])
             .with_min_inner_size([330.0, 150.0])
             .with_resizable(false)
@@ -139,10 +139,10 @@ fn main() -> ExitCode {
         )) as Box<dyn eframe::App>)
     };
 
-    match eframe::run_native("hypr-speak", native, Box::new(app)) {
+    match eframe::run_native("parrot", native, Box::new(app)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("hypr-speak: {e}");
+            eprintln!("parrot: {e}");
             ExitCode::FAILURE
         }
     }
@@ -151,22 +151,30 @@ fn main() -> ExitCode {
 /// Where install.sh puts downloaded piper voices.
 pub fn default_voice_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join(".local/share/hypr-speak/voices")
+        .join(".local/share/parrot/voices")
 }
 
-/// Resolve the piper model path: --model > $HYPR_SPEAK_MODEL > default dir
+/// Resolve the piper model path: --model > $PARROT_MODEL > default dir
 /// (prefer `en_US-lessac-medium`, else first *.onnx.json, else first *.onnx).
-pub fn resolve_model(opts: &hypr_speak::cli::Opts) -> Option<std::path::PathBuf> {
+pub fn resolve_model(opts: &parrot::cli::Opts) -> Option<std::path::PathBuf> {
     if let Some(m) = &opts.model {
         return Some(std::path::PathBuf::from(m));
     }
-    if let Ok(m) = std::env::var("HYPR_SPEAK_MODEL") {
+    if let Ok(m) = std::env::var("PARROT_MODEL") {
         if !m.is_empty() {
             return Some(std::path::PathBuf::from(m));
         }
     }
     let dir = default_voice_dir();
-    let entries = std::fs::read_dir(&dir).ok()?;
+    // Keep previously downloaded voices usable after the executable rename.
+    let entries = std::fs::read_dir(&dir)
+        .or_else(|_| {
+            std::fs::read_dir(
+                std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                    .join(".local/share/hypr-speak/voices"),
+            )
+        })
+        .ok()?;
     let mut jsons: Vec<_> = entries
         .flatten()
         .map(|e| e.path())
@@ -187,10 +195,10 @@ pub fn resolve_model(opts: &hypr_speak::cli::Opts) -> Option<std::path::PathBuf>
         .cloned()
 }
 
-/// Find the piper executable: $HYPR_SPEAK_PIPER > PATH > ~/.local/bin/piper.
+/// Find the piper executable: $PARROT_PIPER > PATH > ~/.local/bin/piper.
 /// (~/.local/bin is checked explicitly: Hyprland's PATH may not include it.)
 pub fn resolve_piper_bin() -> Option<std::path::PathBuf> {
-    if let Ok(b) = std::env::var("HYPR_SPEAK_PIPER") {
+    if let Ok(b) = std::env::var("PARROT_PIPER") {
         if !b.is_empty() {
             return Some(std::path::PathBuf::from(b));
         }
@@ -209,7 +217,7 @@ pub fn resolve_piper_bin() -> Option<std::path::PathBuf> {
 }
 
 /// Build the TTS engine per --engine/auto resolution (piper preferred).
-pub fn make_engine(opts: &hypr_speak::cli::Opts) -> anyhow::Result<Box<dyn TtsEngine>> {
+pub fn make_engine(opts: &parrot::cli::Opts) -> anyhow::Result<Box<dyn TtsEngine>> {
     let model = resolve_model(opts);
     if opts.engine == "piper" || (opts.engine == "auto" && model.is_some()) {
         let path = model.ok_or_else(|| {
@@ -223,7 +231,7 @@ pub fn make_engine(opts: &hypr_speak::cli::Opts) -> anyhow::Result<Box<dyn TtsEn
             )
         })?;
         log::info!("engine: piper ({} / {})", bin.display(), path.display());
-        return Ok(Box::new(hypr_speak::tts::PiperEngine::new(&path, &bin)?));
+        return Ok(Box::new(parrot::tts::PiperEngine::new(&path, &bin)?));
     }
     log::info!("engine: espeak-ng (voice {})", opts.voice);
     Ok(Box::new(EspeakNg::new(&opts.voice)?))
@@ -233,7 +241,7 @@ pub fn make_engine(opts: &hypr_speak::cli::Opts) -> anyhow::Result<Box<dyn TtsEn
 /// by sentence, appends PCM to the shared sink, honors speed restarts.
 fn spawn_worker(
     sentences: Vec<String>,
-    opts: hypr_speak::cli::Opts,
+    opts: parrot::cli::Opts,
     player: SharedPlayer,
     shared: Arc<Shared>,
     tx: mpsc::Sender<EngineEvent>,
@@ -292,7 +300,7 @@ fn spawn_worker(
 fn synth_to_wav(
     cleaned: &str,
     sentences: &[String],
-    opts: &hypr_speak::cli::Opts,
+    opts: &parrot::cli::Opts,
     path: &std::path::Path,
 ) -> anyhow::Result<String> {
     let mut engine = make_engine(opts)?;

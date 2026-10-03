@@ -4,7 +4,7 @@ A lightweight, single-binary Rust utility following the macOS *Speak Selection* 
 hotkey → read primary selection → speak via TTS → small floating control overlay →
 auto-exit when done.
 
-Repo name: `parrot`. Binary name: `hypr-speak`.
+Repo name: `parrot`. Binary name: `parrot`.
 
 ---
 
@@ -21,7 +21,7 @@ Repo name: `parrot`. Binary name: `hypr-speak`.
 ## 2. Architecture
 
 ```
-                 Hyprland bind (ALT,Escape) ──exec──▶ hypr-speak
+                 Hyprland bind (ALT,Escape) ──exec──▶ parrot
                                                       │
  ┌────────────────────────────────────────────────────┼─────────────────────────────┐
  │ main.rs                                            ▼                             │
@@ -72,7 +72,7 @@ pub trait TtsEngine: Send {
   SetParameter/SetSynthCallback/Synth/Terminate`) — no bindgen, no extra crate.
   `libespeak-ng.so` is linked normally (present on target machine).
 - Feature `bundled` (ROADMAP/v1.1): `build.rs` copies `/usr/lib/espeak-ng-data` into the
-  binary via `include_dir!`, extracted to `~/.cache/hypr-speak/` at runtime and passed to
+  binary via `include_dir!`, extracted to `~/.cache/parrot/` at runtime and passed to
   `espeak_Initialize(path)` → zero external voice data. A future `piper` backend slots in
   behind the same trait (`include_bytes!` for the ONNX weights) without touching UI/audio.
 
@@ -91,14 +91,14 @@ pub trait TtsEngine: Send {
 
 ## 5. Hyprland integration
 
-App sets wayland `app_id = hypr-speak` (eframe `NativeOptions::app_id`).
+App sets wayland `app_id = parrot` (eframe `NativeOptions::app_id`).
 `install.sh` appends (idempotently, after backup):
 
 ```ini
-windowrule = float, class:^(hypr-speak)$
-windowrule = size 440 170, class:^(hypr-speak)$
-windowrule = pin, class:^(hypr-speak)$
-bind = ALT, Escape, exec, hypr-speak
+windowrule = float, class:^(parrot)$
+windowrule = size 440 170, class:^(parrot)$
+windowrule = pin, class:^(parrot)$
+bind = ALT, Escape, exec, parrot
 ```
 
 Conflict detection normalizes a bind line to `(mods_set, key)` — resolving `$vars`,

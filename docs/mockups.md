@@ -6,7 +6,7 @@
 
 ```
 ╭──────────────────────────────────────────────────────╮
-│  ◉ hypr-speak                                  ✕     │   ← drag anywhere; ✕ = close
+│  ◉ parrot                                  ✕     │   ← drag anywhere; ✕ = close
 │──────────────────────────────────────────────────────│
 │  “The quick brown fox jumps over the lazy dog.”      │   ← current sentence, dim white,
 │                                                      │      elided to 2 lines
@@ -37,7 +37,7 @@ dim text `#8A8578`, error `#E06C75`.
 ```
  user          Hyprland            parrot                espeak worker        rodio
   │ highlight text   │                  │                       │                 │
-  │ ALT,Escape ─────▶│  exec hypr-speak │                       │                 │
+  │ ALT,Escape ─────▶│  exec parrot │                       │                 │
   │                  │─────────────────▶│ read primary sel      │                 │
   │                  │                  │ (empty? exit 0)       │                 │
   │                  │◀── map window ───│ spawn worker ────────▶│ synth s0 ──────▶│ play
@@ -68,7 +68,7 @@ dim text `#8A8578`, error `#E06C75`.
         ┌─────▼──────────┐
         │ backup conf    │  hyprland.conf.bak-YYYYmmdd-HHMMSS
         │ append rules   │  windowrule float/size/pin (idempotent)
-        │ append bind    │  bind = ALT, Escape, exec, hypr-speak
+        │ append bind    │  bind = ALT, Escape, exec, parrot
         │ build release  │  cargo build --release
         │ install bin    │  ~/.local/bin (PATH check)
         │ hyprctl reload │

@@ -1,4 +1,4 @@
-# parrot — `hypr-speak`
+# Parrot
 
 **Speak Selection for Hyprland.** Highlight any text, press `ALT+Escape`, and a small
 floating overlay speaks your selection aloud — macOS-style — then closes itself.
@@ -39,6 +39,13 @@ Status: early release. See [review findings and remaining release checks](docs/R
 
 ## Install
 
+Upgrading from the original `hypr-speak` name: remove its old shortcut and
+window rules from your Hyprland config before running the installer again.
+The new executable and window class are `parrot`; new voice downloads live in
+`~/.local/share/parrot/`. Existing voices in `~/.local/share/hypr-speak/voices`
+remain discoverable. Environment overrides are now `PARROT_MODEL` and
+`PARROT_PIPER`. Remove the old executable once the new shortcut works.
+
 ```sh
 git clone https://github.com/rafaelzimmermann/parrot.git
 cd parrot
@@ -63,8 +70,8 @@ espeak-ng is instant and tiny but robotic. For a natural voice, run:
     ./install.sh --voice en_US-lessac-medium
 
 This downloads the official `piper` binary + a ~63 MB voice model into
-`~/.local/share/hypr-speak/` (idempotent; ~5 MB binary, model of your choice).
-hypr-speak then auto-prefers piper — espeak-ng remains the zero-download
+`~/.local/share/parrot/` (idempotent; ~5 MB binary, model of your choice).
+parrot then auto-prefers piper — espeak-ng remains the zero-download
 fallback (`--engine espeak` forces it). Speed still works (piper `--length-scale`),
 pitch preserved. Other voices: `de_DE-ramona-low`, `en_GB-alan-medium`, …
 (see [piper-voices](https://huggingface.co/rhasspy/piper-voices)); preview the
@@ -87,16 +94,16 @@ exact URLs with `./install.sh --voice-url <name>`.
 CLI extras:
 
 ```sh
-hypr-speak --text "hello"        # skip clipboard
-hypr-speak --voice de --speed 1.5
-hypr-speak --text "test" --wav out.wav   # headless render, no GUI
-hypr-speak --verbose             # crate logs only
+parrot --text "hello"        # skip clipboard
+parrot --voice de --speed 1.5
+parrot --text "test" --wav out.wav   # headless render, no GUI
+parrot --verbose             # crate logs only
 ```
 
 ## Uninstall
 
-Remove the `# --- hypr-speak` block from `hyprland.conf` (a `.bak-*` backup sits
-next to it), `hyprctl reload`, and delete `~/.local/bin/hypr-speak`.
+Remove the `# --- parrot` block from `hyprland.conf` (a `.bak-*` backup sits
+next to it), `hyprctl reload`, and delete `~/.local/bin/parrot`.
 
 ## Development
 
@@ -129,8 +136,8 @@ Layout: `src/textutil.rs` (cleanup/split) · `src/selection.rs` (wl-clipboard) �
 
 ```sh
 ./install.sh --voice en_US-lessac-medium
-hypr-speak --engine piper --text "Hello from Parrot" --wav demo.wav
-hypr-speak --engine espeak --voice en --text "Hello from Parrot"
+parrot --engine piper --text "Hello from Parrot" --wav demo.wav
+parrot --engine espeak --voice en --text "Hello from Parrot"
 ```
 
 Automatic engine selection prefers installed Piper models. An incomplete Piper

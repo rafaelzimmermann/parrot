@@ -1,4 +1,7 @@
-# TASKS — parrot (hypr-speak)
+# TASKS — Parrot
+
+- [x] Rename package, executable, window identity, installer, environment
+  overrides, tests, and documentation to `parrot`; retain legacy voice discovery.
 
 ## Public release review (2026-10-03)
 
@@ -34,7 +37,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
 ## T4 UI
 - [x] ui.rs — overlay per mockup: title/✕, sentence, progress, Pause/Play, velocity slider
 - [x] auto-close on EOF (+400 ms), Esc/✕ close, error state (6 s auto-close)
-- [x] transparent borderless always-on-top, app_id hypr-speak (with_app_id)
+- [x] transparent borderless always-on-top, app_id parrot (with_app_id)
 
 ## T5 Wiring
 - [x] main.rs — CLI via testable cli.rs (--text/--voice/--speed/--wav/--verbose/--help) + 6 tests
@@ -44,7 +47,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
 - [x] cargo test: 30/30 unit tests green
 - [x] cargo build --release clean (16.4 MB binary)
 - [x] headless: --wav → valid 7 s WAV; aplay playback OK
-- [x] live: wl-copy primary → run app → window exists (hyprctl clients: class hypr-speak, 440×170, floating)
+- [x] live: wl-copy primary → run app → window exists (hyprctl clients: class parrot, 440×170, floating)
 - [x] live: auto-close observed (exit 0, elapsed = audio + 400 ms grace; verified 7.5 s @ 1.0×)
 - [x] live: screenshot pixel-verified vs mockup (94 % dark panel bg, accent + light text present)
 - [x] live: no-selection → silent exit 0 in 9 ms
@@ -57,7 +60,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
 - [x] fixture tests: conflict / already-bound / var-substitution / nested source / MOD1 alias / dry-run (22 checks, tmp dirs)
 - [x] --dry-run against real config (checksum-verified untouched)
 - [x] REAL INSTALL performed: ALT,Escape bound, rules added, backup made, reloaded
-- [x] end-to-end: hyprctl dispatch exec hypr-speak → overlay + full playback + auto-close (exit 0, 7.5 s)
+- [x] end-to-end: hyprctl dispatch exec parrot → overlay + full playback + auto-close (exit 0, 7.5 s)
 - [x] idempotent re-run detected existing bind+rules
 
 ## T8 Docs & wrap-up
@@ -86,10 +89,10 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
   detection, lua-shaped append + backup of the .lua. 4 new fixture tests (T9–T12),
   34/34 green; real dry-run detects existing lua bind+rules.
   **Bugfix #2 ("still does not work")**: Hyprland's own PATH lacks
-  ~/.local/bin (verified via /proc/<pid>/environ) — `exec, hypr-speak` spawned
+  ~/.local/bin (verified via /proc/<pid>/environ) — `exec, parrot` spawned
   nothing. Binds now always carry the ABSOLUTE path (matches the user's own
   `~/.local/bin/aplec` convention). Chain re-verified end-to-end via
-  `hyprctl dispatch 'hl.dsp.exec_cmd("…/hypr-speak")'` → overlay UP
+  `hyprctl dispatch 'hl.dsp.exec_cmd("…/parrot")'` → overlay UP
   (floating+pinned, 440×170), spoken, auto-closed. NB: in 0.56 all classic
   string dispatches (`key`, `exec X`) are Lua-eval'd.
 - T8: README written. PROJECT COMPLETE.
@@ -100,7 +103,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
   `TtsEngine` trait (`PiperEngine`: stdin text → `--output-raw` PCM16LE,
   `--length-scale 1/speed`, sample rate parsed from `.onnx.json`). Engine
   resolution: `--engine auto|espeak|piper` + `--model`, auto = model found in
-  ~/.local/share/hypr-speak/voices (prefer en_US-lessac-medium). piper binary
+  ~/.local/share/parrot/voices (prefer en_US-lessac-medium). piper binary
   lookup checks PATH *and* ~/.local/bin explicitly (Hyprland PATH gap again).
   install.sh `--voice NAME`: downloads piper dist (GH releases 2023.11.14-2,
   x86_64/aarch64) + model pair (HF) with --voice-url helper for preview/tests.

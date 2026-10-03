@@ -29,7 +29,7 @@ check() { # name expected_rc condition_expr
 }
 
 # Tests focus on config logic; the release binary must exist beforehand (no rebuilds in tests)
-[[ -x "$SCRIPT_DIR/target/release/hypr-speak" ]] || { echo "build the project first (cargo build --release)"; exit 1; }
+[[ -x "$SCRIPT_DIR/target/release/parrot" ]] || { echo "build the project first (cargo build --release)"; exit 1; }
 
 reset; echo "== T1: free key → appends bind + rules =="
 printf 'bind = SUPER, T, exec, terminal\n' > "$HYPRDIR/hyprland.conf"
@@ -38,7 +38,7 @@ check "installs cleanly" "$rc" "$out" '[[ $rc -eq 0 ]]'
 check "bind appended" "$rc" "$out" 'grep -q "^bind = ALT, Escape, exec" "$HYPRDIR/hyprland.conf"'
 check "rules appended" "$rc" "$out" 'grep -q "windowrule = float" "$HYPRDIR/hyprland.conf"'
 check "backup created" "$rc" "$out" 'ls "$HYPRDIR"/hyprland.conf.bak-* >/dev/null 2>&1'
-check "binary installed" "$rc" "$out" '[[ -x "$FAKE/bin/hypr-speak" ]]'
+check "binary installed" "$rc" "$out" '[[ -x "$FAKE/bin/parrot" ]]'
 
 reset; echo "== T2: conflict → abort with file:line =="
 printf 'bind = SUPER, T, exec, terminal\nbind = ALT, Escape, exec, something-else\n' > "$HYPRDIR/hyprland.conf"
@@ -46,10 +46,10 @@ out="$(run)"; rc=$?
 check "aborts" "$rc" "$out" '[[ $rc -ne 0 ]]'
 check "shows file:line" "$rc" "$out" 'echo "$out" | grep -q "hyprland.conf:2"'
 check "shows offending line" "$rc" "$out" 'echo "$out" | grep -q "something-else"'
-check "no modification" "$rc" "$out" '! grep -q "hypr-speak" "$HYPRDIR/hyprland.conf"'
+check "no modification" "$rc" "$out" '! grep -q "parrot" "$HYPRDIR/hyprland.conf"'
 
-reset; echo "== T3: already bound to hypr-speak → skip bind, keep rules =="
-printf 'bind = ALT, Escape, exec, hypr-speak\n' > "$HYPRDIR/hyprland.conf"
+reset; echo "== T3: already bound to parrot → skip bind, keep rules =="
+printf 'bind = ALT, Escape, exec, parrot\n' > "$HYPRDIR/hyprland.conf"
 out="$(run)"; rc=$?
 check "succeeds" "$rc" "$out" '[[ $rc -eq 0 ]]'
 check "no duplicate bind" "$rc" "$out" '[[ $(grep -c "ALT, Escape" "$HYPRDIR/hyprland.conf") -eq 1 ]]'
@@ -82,7 +82,7 @@ reset; echo "== T8: dry-run changes nothing =="
 printf 'bind = SUPER, T, exec, term\n' > "$HYPRDIR/hyprland.conf"
 out="$(run --dry-run)"; rc=$?
 check "dry-run ok" "$rc" "$out" '[[ $rc -eq 0 ]]'
-check "conf untouched" "$rc" "$out" '! grep -q "hypr-speak" "$HYPRDIR/hyprland.conf"'
+check "conf untouched" "$rc" "$out" '! grep -q "parrot" "$HYPRDIR/hyprland.conf"'
 check "no backup" "$rc" "$out" '! ls "$HYPRDIR"/hyprland.conf.bak-* >/dev/null 2>&1'
 check "shows plan" "$rc" "$out" 'echo "$out" | grep -q "would append"'
 
@@ -93,8 +93,8 @@ printf 'local mainMod = "SUPER"\nhl.bind(mainMod .. " + T", hl.dsp.exec_cmd(term
 out="$(run)"; rc=$?
 check "installs to lua" "$rc" "$out" '[[ $rc -eq 0 ]]'
 check "lua bind added" "$rc" "$out" 'grep -q "hl.bind(.ALT + Escape., hl.dsp.exec_cmd" "$HYPRDIR/hyprland.lua"'
-check "lua rule added" "$rc" "$out" 'grep -q "hypr-speak-overlay" "$HYPRDIR/hyprland.lua"'
-check "conf untouched" "$rc" "$out" '! grep -q hypr-speak "$HYPRDIR/hyprland.conf"'
+check "lua rule added" "$rc" "$out" 'grep -q "parrot-overlay" "$HYPRDIR/hyprland.lua"'
+check "conf untouched" "$rc" "$out" '! grep -q parrot "$HYPRDIR/hyprland.conf"'
 check "lua backup made" "$rc" "$out" 'ls "$HYPRDIR"/hyprland.lua.bak-* >/dev/null 2>&1'
 
 echo "== T10: lua conflict → abort with file:line =="
@@ -104,15 +104,15 @@ printf 'x\n' > "$HYPRDIR/hyprland.conf"
 out="$(run)"; rc=$?
 check "aborts" "$rc" "$out" '[[ $rc -ne 0 ]]'
 check "file:line" "$rc" "$out" 'echo "$out" | grep -q "hyprland.lua:1"'
-check "no modification" "$rc" "$out" '! grep -q hypr-speak "$HYPRDIR/hyprland.lua"'
+check "no modification" "$rc" "$out" '! grep -q parrot "$HYPRDIR/hyprland.lua"'
 
-echo "== T11: lua already bound to hypr-speak → no dup =="
+echo "== T11: lua already bound to parrot → no dup =="
 reset
-printf 'hl.bind("ALT + Escape", hl.dsp.exec_cmd("hypr-speak"))\n' > "$HYPRDIR/hyprland.lua"
+printf 'hl.bind("ALT + Escape", hl.dsp.exec_cmd("parrot"))\n' > "$HYPRDIR/hyprland.lua"
 out="$(run)"; rc=$?
 check "succeeds" "$rc" "$out" '[[ $rc -eq 0 ]]'
 check "no duplicate" "$rc" "$out" '[[ $(grep -c "ALT + Escape" "$HYPRDIR/hyprland.lua") -eq 1 ]]'
-check "rule still added" "$rc" "$out" 'grep -q "hypr-speak-overlay" "$HYPRDIR/hyprland.lua"'
+check "rule still added" "$rc" "$out" 'grep -q "parrot-overlay" "$HYPRDIR/hyprland.lua"'
 
 echo "== T12: lua var substitution detects conflict =="
 reset

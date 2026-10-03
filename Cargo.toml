@@ -1,5 +1,5 @@
 [package]
-name = "hypr-speak"
+name = "parrot"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.92"
@@ -8,11 +8,11 @@ license = "MIT"
 repository = "https://github.com/rafaelzimmermann/parrot"
 
 [lib]
-name = "hypr_speak"
+name = "parrot"
 path = "src/lib.rs"
 
 [[bin]]
-name = "hypr-speak"
+name = "parrot"
 path = "src/main.rs"
 
 [dependencies]

@@ -194,7 +194,7 @@ impl eframe::App for SpeakApp {
                 // title row
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("●").color(ACCENT).size(11.0));
-                    ui.label(RichText::new("hypr-speak").color(DIM).size(12.0).strong());
+                    ui.label(RichText::new("parrot").color(DIM).size(12.0).strong());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .add(
@@ -300,7 +300,7 @@ fn error_panel(ui: &mut egui::Ui, err: &str, error_at: Option<Instant>) {
     ui.vertical_centered(|ui| {
         ui.add_space(10.0);
         ui.label(
-            RichText::new("⚠ hypr-speak error")
+            RichText::new("⚠ parrot error")
                 .color(ERR)
                 .size(15.0)
                 .strong(),

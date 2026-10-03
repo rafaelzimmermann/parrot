@@ -4,10 +4,10 @@
 use std::path::PathBuf;
 
 pub const USAGE: &str = "\
-hypr-speak — Speak Selection for Hyprland/Wayland
+parrot — Speak Selection for Hyprland/Wayland
 
 USAGE:
-    hypr-speak [OPTIONS]
+    parrot [OPTIONS]
 
 OPTIONS:
     --text <TXT>    Speak TXT instead of reading the selection (testing)
@@ -20,7 +20,7 @@ OPTIONS:
     -h, --help      This help
 
 Bind example (hyprland.conf):
-    bind = ALT, Escape, exec, hypr-speak
+    bind = ALT, Escape, exec, parrot
 ";
 
 #[derive(Debug, Clone, PartialEq)]

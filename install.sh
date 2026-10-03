@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# hypr-speak installer — dependency check, keybind conflict detection,
+# parrot installer — dependency check, keybind conflict detection,
 # window rules, release build, binary install.
 #
 # Usage: ./install.sh [OPTIONS]
@@ -10,7 +10,7 @@
 #   --no-bind          Don't touch binds
 #   --no-rules         Don't add window rules
 #   --bin-dir DIR      Install binary here           (default: ~/.local/bin)
-#   --skip-build       Don't build (use existing target/release/hypr-speak)
+#   --skip-build       Don't build (use existing target/release/parrot)
 #   --voice NAME       Also install the piper neural voice (e.g. en_US-lessac-medium):
 #                       downloads the piper binary + voice model (~63 MB) on first use
 #   --voice-url NAME   Print the download URLs for NAME and exit
@@ -23,13 +23,13 @@ KEY="$DEFAULT_KEY"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
 BIN_DIR="$HOME/.local/bin"
 VOICE=""
-VOICE_DIR="$HOME/.local/share/hypr-speak/voices"
-PIPER_DIR="$HOME/.local/share/hypr-speak/piper"
+VOICE_DIR="$HOME/.local/share/parrot/voices"
+PIPER_DIR="$HOME/.local/share/parrot/piper"
 PIPER_VER="2023.11.14-2"
 DRY_RUN=0 NO_BIND=0 NO_RULES=0 SKIP_BUILD=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN_NAME="hypr-speak"
-APP_ID="hypr-speak"
+BIN_NAME="parrot"
+APP_ID="parrot"
 
 log()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARNING:\033[0m %s\n' "$*"; }
@@ -79,7 +79,7 @@ setup_voice() {
         ln -sf "$PIPER_DIR/piper" "$BIN_DIR/piper"
         "$BIN_DIR/piper" --help >/dev/null 2>&1 || die "piper binary does not run on this system"
     fi
-    log "neural voice ready: hypr-speak will use piper ($n) automatically"
+    log "neural voice ready: parrot will use piper ($n) automatically"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -315,7 +315,7 @@ fi
 # --- 4. neural voice (optional --voice) -------------------------------------
 if [[ -n "$VOICE" ]]; then
     if [[ $DRY_RUN -eq 1 ]]; then
-        log "dry-run: would download piper + voice '$VOICE' into ~/.local/share/hypr-speak/"
+        log "dry-run: would download piper + voice '$VOICE' into ~/.local/share/parrot/"
     else
         setup_voice
     fi
@@ -337,11 +337,11 @@ APPEND=()
 CMD="$BIN_DIR/$BIN_NAME"
 if [[ -n "$LUA_CONF" ]]; then
     TARGET="$LUA_CONF"
-    if [[ $NO_RULES -eq 0 ]] && ! grep -Eq 'hypr-speak-overlay|class *= *["'\''\^]?hypr-speak' "$LUA_CONF"; then
+    if [[ $NO_RULES -eq 0 ]] && ! grep -Eq 'parrot-overlay|class *= *["'\''\^]?parrot' "$LUA_CONF"; then
         APPEND+=(
-            '-- --- hypr-speak (Speak Selection) --------------------------------'
+            '-- --- parrot (Speak Selection) --------------------------------'
             'hl.window_rule({'
-            '    name  = "hypr-speak-overlay",'
+            '    name  = "parrot-overlay",'
             '    match = { class = "^'"$APP_ID"'$" },'
             '    float = true,'
             '    size  = "440 170",'
