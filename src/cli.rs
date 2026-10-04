@@ -7,10 +7,14 @@ pub const USAGE: &str = "\
 parrot — Speak Selection for Hyprland/Wayland
 
 USAGE:
-    parrot [OPTIONS]
+    parrot [OPTIONS] [TXT]
+
+INPUT:
+    Quoted TXT takes precedence over piped/redirected stdin.
+    Without either, read the selection (then clipboard).
+    Use -- before text beginning with a dash.
 
 OPTIONS:
-    --text <TXT>    Speak TXT instead of reading the selection (testing)
     --voice <NAME>  espeak-ng voice, e.g. `en`, `de`, `en+whisper`   [default: en]
     --speed <F>     Initial velocity 0.5–2.0                        [default: 1.0]
     --engine <E>    auto | espeak | piper                          [default: auto]
@@ -63,9 +67,18 @@ where
 {
     let mut o = Opts::default();
     let mut it = it.into_iter();
+    let mut positional_only = false;
     while let Some(a) = it.next() {
+        if positional_only || !a.starts_with('-') {
+            if o.text.replace(a).is_some() {
+                return Err(CliError::Msg(
+                    "expected one TXT argument; quote multiword text".into(),
+                ));
+            }
+            continue;
+        }
         match a.as_str() {
-            "--text" => o.text = Some(it.next().ok_or_missing("--text")?),
+            "--" => positional_only = true,
             "--voice" => o.voice = it.next().ok_or_missing("--voice")?,
             "--engine" => {
                 let v = it.next().ok_or_missing("--engine")?;
@@ -154,7 +167,6 @@ mod tests {
     #[test]
     fn all_flags() {
         let o = parse_from(args(&[
-            "--text",
             "hi there",
             "--voice",
             "de",
@@ -181,7 +193,7 @@ mod tests {
     #[test]
     fn missing_values() {
         assert!(
-            matches!(parse_from(args(&["--text"])), Err(CliError::Msg(m)) if m.contains("needs a value"))
+            matches!(parse_from(args(&["--voice"])), Err(CliError::Msg(m)) if m.contains("needs a value"))
         );
         assert!(
             matches!(parse_from(args(&["--speed"])), Err(CliError::Msg(m)) if m.contains("needs a value"))
@@ -203,5 +215,23 @@ mod tests {
         assert!(
             matches!(parse_from(args(&["--frobnicate"])), Err(CliError::Msg(m)) if m.contains("unknown argument"))
         );
+    }
+
+    #[test]
+    fn positional_text_and_separator() {
+        assert_eq!(
+            parse_from(args(&["--voice", "en", "hello world"]))
+                .unwrap()
+                .text
+                .as_deref(),
+            Some("hello world")
+        );
+        assert_eq!(
+            parse_from(args(&["--", "--help"])).unwrap().text.as_deref(),
+            Some("--help")
+        );
+        assert_eq!(parse_from(args(&[""])).unwrap().text.as_deref(), Some(""));
+        assert!(parse_from(args(&["hello", "world"])).is_err());
+        assert!(parse_from(args(&["--text", "hello"])).is_err());
     }
 }

@@ -80,7 +80,7 @@ pub trait TtsEngine: Send {
 
 | File | Responsibility |
 |---|---|
-| `src/main.rs` | CLI (`--text`, `--voice`, `--speed`, `--wav FILE`, `--verbose`), wiring, no-text → silent exit 0 |
+| `src/main.rs` | CLI (`TXT`, `--voice`, `--speed`, `--wav FILE`, `--verbose`), wiring, no-text → silent exit 0 |
 | `src/lib.rs` | module tree + shared types |
 | `src/selection.rs` | primary selection → clipboard fallback; sanitize; 20 000-char cap |
 | `src/textutil.rs` | whitespace cleanup, sentence splitting (keep punctuation), unit-tested |

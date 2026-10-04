@@ -13,7 +13,7 @@ Transcript:
 Reproduce from the repository root after installing the voice:
 
 ```sh
-cargo run --locked -- --engine piper --text 'Hello! I am Parrot. Highlight some text, press your shortcut, and I will read it aloud. Pause whenever you like, or change the speaking speed. Your words stay on your computer.' --wav docs/voice-demo.wav
+cargo run --locked -- --engine piper 'Hello! I am Parrot. Highlight some text, press your shortcut, and I will read it aloud. Pause whenever you like, or change the speaking speed. Your words stay on your computer.' --wav docs/voice-demo.wav
 ```
 
 [Upstream model card](https://huggingface.co/rhasspy/piper-voices/blob/main/en/en_US/lessac/medium/MODEL_CARD)

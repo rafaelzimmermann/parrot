@@ -1,5 +1,9 @@
 # TASKS — Parrot
 
+- [x] Replace the text flag with positional TXT and support pipes/file stdin.
+  Positional input wins; empty explicit input exits; desktop `/dev/null` falls
+  back to selection. Verified 37 unit tests, input integration test, and Clippy.
+
 - [x] Rename package, executable, window identity, installer, environment
   overrides, tests, and documentation to `parrot`; retain legacy voice discovery.
 
@@ -40,7 +44,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` skipped (document
 - [x] transparent borderless always-on-top, app_id parrot (with_app_id)
 
 ## T5 Wiring
-- [x] main.rs — CLI via testable cli.rs (--text/--voice/--speed/--wav/--verbose/--help) + 6 tests
+- [x] main.rs — CLI via testable cli.rs (TXT/--voice/--speed/--wav/--verbose/--help) + 6 tests
 - [x] worker thread: sentence loop, speed restart, prefetch ≤2, events to UI
 
 ## T6 Build & test

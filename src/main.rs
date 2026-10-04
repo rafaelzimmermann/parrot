@@ -3,6 +3,8 @@
 //! Lifecycle: read primary selection → clean/split → TTS worker thread →
 //! rodio playback → egui overlay → auto-close on completion.
 
+use std::io::Read;
+use std::os::unix::fs::FileTypeExt;
 use std::process::ExitCode;
 use std::sync::atomic::AtomicU32;
 use std::sync::{mpsc, Arc, Mutex};
@@ -44,6 +46,18 @@ fn main() -> ExitCode {
     // ---- 1. acquire text --------------------------------------------------
     let raw = match &opts.text {
         Some(t) => t.clone(),
+        None if stdin_has_input() => {
+            let mut bytes = Vec::new();
+            if let Err(e) = std::io::stdin()
+                .lock()
+                .take((textutil::MAX_TEXT_LEN * 4) as u64)
+                .read_to_end(&mut bytes)
+            {
+                eprintln!("parrot: reading stdin: {e}");
+                return ExitCode::FAILURE;
+            }
+            String::from_utf8_lossy(&bytes).into_owned()
+        }
         None => match selection::get_selection_text() {
             Ok(Some(t)) => t,
             Ok(None) => {
@@ -146,6 +160,15 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Desktop launchers commonly attach /dev/null: it must not hide the selection.
+/// Empty files/pipes, however, are explicit input and do not fall back.
+fn stdin_has_input() -> bool {
+    std::fs::metadata("/proc/self/fd/0").is_ok_and(|meta| {
+        let kind = meta.file_type();
+        kind.is_file() || kind.is_fifo() || kind.is_socket()
+    })
 }
 
 /// Where install.sh puts downloaded piper voices.

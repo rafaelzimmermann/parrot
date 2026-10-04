@@ -93,11 +93,18 @@ exact URLs with `./install.sh --voice-url <name>`.
 
 CLI extras:
 
+Input order: one quoted text argument, then piped/redirected stdin, then the
+selection or clipboard. Empty piped input exits silently. Desktop launches with
+stdin attached to `/dev/null` still read the selection. Input is length-limited.
+
 ```sh
-parrot --text "hello"        # skip clipboard
+parrot "hello"        # skip clipboard
 parrot --voice de --speed 1.5
-parrot --text "test" --wav out.wav   # headless render, no GUI
+parrot "test" --wav out.wav   # headless render, no GUI
 parrot --verbose             # crate logs only
+cat file.txt | parrot         # read stdin
+parrot < file.txt             # redirected input
+parrot -- "--literal text"    # text beginning with a dash
 ```
 
 ## Uninstall
@@ -136,8 +143,8 @@ Layout: `src/textutil.rs` (cleanup/split) Â· `src/selection.rs` (wl-clipboard) Â
 
 ```sh
 ./install.sh --voice en_US-lessac-medium
-parrot --engine piper --text "Hello from Parrot" --wav demo.wav
-parrot --engine espeak --voice en --text "Hello from Parrot"
+parrot --engine piper "Hello from Parrot" --wav demo.wav
+parrot --engine espeak --voice en "Hello from Parrot"
 ```
 
 Automatic engine selection prefers installed Piper models. An incomplete Piper
@@ -151,7 +158,7 @@ project's MIT license covers its source, not those dependencies.
 Distribution support and desktop support are separate: the clipboard reader
 requires Wayland data-control protocols. Hyprland is the intended desktop;
 GNOME, KDE, and X11 selection capture are not currently supported or verified.
-Explicit `--text ... --wav ...` rendering does not require a desktop session.
+Explicit `... --wav ...` rendering does not require a desktop session.
 
 For Ubuntu/Debian builds, install native dependencies, then use Rust 1.92 or
 newer (older distribution Rust packages may be insufficient):
