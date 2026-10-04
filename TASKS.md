@@ -1,5 +1,9 @@
 # TASKS — Parrot
 
+- [x] Add POSIX-shell bootstrap for curl installation without Git; document
+  source-build dependencies and option forwarding. Verified shell lint,
+  offline failure/cleanup fixtures, and real GitHub archive download with --help.
+
 - [x] Replace the text flag with positional TXT and support pipes/file stdin.
   Positional input wins; empty explicit input exits; desktop `/dev/null` falls
   back to selection. Verified 37 unit tests, input integration test, and Clippy.

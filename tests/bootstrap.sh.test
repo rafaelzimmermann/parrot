@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+fixture="$(mktemp -d)"
+trap 'rm -rf -- "$fixture"' EXIT
+mkdir -p "$fixture/bin" "$fixture/archive/parrot" "$fixture/tmp"
+# Shell fixtures are copied from versioned test files; no network or real install.
+cp "$root/tests/fixtures/bootstrap-installer.sh" "$fixture/archive/parrot/install.sh"
+touch "$fixture/archive/parrot/Cargo.toml"
+tar -czf "$fixture/source.tar.gz" -C "$fixture/archive" parrot
+cp "$root/tests/fixtures/bootstrap-curl.sh" "$fixture/bin/curl"
+chmod +x "$fixture/bin/curl"
+export PATH="$fixture/bin:$PATH" TMPDIR="$fixture/tmp"
+export PARROT_TEST_ARCHIVE="$fixture/source.tar.gz" PARROT_TEST_OUTPUT="$fixture/args"
+
+sh "$root/bootstrap.sh" --key 'SUPER SHIFT, S' --dry-run
+mapfile -t args < "$fixture/args"
+[[ "${args[0]}" == --key && "${args[1]}" == 'SUPER SHIFT, S' && "${args[2]}" == --dry-run ]]
+[[ -z "$(ls -A "$fixture/tmp")" ]]
+if PARROT_TEST_FAIL=1 sh "$root/bootstrap.sh"; then exit 1; fi
+[[ -z "$(ls -A "$fixture/tmp")" ]]
+if PARROT_TEST_INSTALL_FAIL=1 sh "$root/bootstrap.sh"; then exit 1; fi
+[[ -z "$(ls -A "$fixture/tmp")" ]]
+if sh "$root/bootstrap.sh" --skip-build; then exit 1; fi
+printf 'Bootstrap: argument forwarding, download/install failures, cleanup, and skip-build rejection passed.\n'

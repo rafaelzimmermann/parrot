@@ -14,3 +14,4 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo build --release --locked
       - run: bash tests/install.sh.test
+      - run: bash tests/bootstrap.sh.test

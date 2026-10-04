@@ -39,6 +39,40 @@ Status: early release. See [review findings and remaining release checks](docs/R
 
 ## Install
 
+Install without cloning the repository:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rafaelzimmermann/parrot/main/bootstrap.sh | sh
+```
+
+This downloads the source into a temporary directory, runs the existing build
+and installer, then removes the temporary files. It requires Bash, curl, tar,
+Rust 1.92+, and the native development packages listed below. It installs to
+`~/.local/bin` and configures your Hyprland shortcut; run it as your normal user.
+This builds from source, rather than downloading a prebuilt binary.
+
+Pass installer options after `sh -s --`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rafaelzimmermann/parrot/main/bootstrap.sh | sh -s -- --voice en_US-lessac-medium
+curl -fsSL https://raw.githubusercontent.com/rafaelzimmermann/parrot/main/bootstrap.sh | sh -s -- --dry-run
+```
+
+The bootstrap's dry run still downloads and extracts source temporarily, but
+does not build or install it. `--skip-build` is only available in a local checkout.
+For a specific source revision, set `PARROT_REF` on the shell invocation
+(`… | PARROT_REF=<commit-or-tag> sh`). By default it builds the current `main`.
+
+Alternatively, download the script to inspect before running:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rafaelzimmermann/parrot/main/bootstrap.sh -o parrot-install.sh
+less parrot-install.sh
+sh parrot-install.sh
+```
+
+### Install from a checkout
+
 Upgrading from the original `hypr-speak` name: remove its old shortcut and
 window rules from your Hyprland config before running the installer again.
 The new executable and window class are `parrot`; new voice downloads live in
